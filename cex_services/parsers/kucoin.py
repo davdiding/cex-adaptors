@@ -2,7 +2,8 @@ from .base import Parser
 
 
 class KucoinParser(Parser):
-    def check_response(self, response: dict):
+    @staticmethod
+    def check_response(response: dict):
         if response.get("code") == "200000":
             return {"code": 200, "status": "success", "data": response["data"]}
         else:

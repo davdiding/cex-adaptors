@@ -2,6 +2,10 @@ from .base import Parser
 
 
 class BinanceParser(Parser):
+    @staticmethod
+    def check_response(response: dict):
+        return {"code": 200, "status": "success", "data": response["symbols"]}
+
     @property
     def spot_exchange_info_parser(self):
         return {
@@ -54,9 +58,12 @@ class BinanceParser(Parser):
         }
 
     def parse_exchange_info(self, response: dict, parser: dict) -> dict:
-        datas = response["symbols"]
-        results = {}
+        response = self.check_response(response)
+        if response["code"] != 200:
+            return response
 
+        datas = response["data"]
+        results = {}
         for data in datas:
             result = self.get_result_with_parser(data, parser)
             id = self.parse_unified_id(result)
@@ -125,8 +132,9 @@ class BinanceParser(Parser):
         }
 
     def parse_klines(self, response: list, market_type: str) -> list:
+        datas = response
         results = {}
-        for data in response:
+        for data in datas:
             result = self.parse_kline(data, market_type)
             results.update(result)
         return results

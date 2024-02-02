@@ -23,6 +23,13 @@ class OkxParser(Parser):
         "3M": "3M",
     }
 
+    @staticmethod
+    def check_response(response: dict):
+        if response.get("code") == "0":
+            return {"code": 200, "status": "success", "data": response["data"]}
+        else:
+            return {"code": 400, "status": "error", "data": response}
+
     def _parse_leverage(self, lever: any):
         return int(lever) if lever else 1
 
@@ -90,8 +97,11 @@ class OkxParser(Parser):
         }
 
     def parse_exchange_info(self, response: dict, parser: dict) -> dict:
-        datas = response["data"]
+        response = self.check_response(response)
+        if response["code"] != 200:
+            return response
 
+        datas = response["data"]
         results = {}
         for data in datas:
             result = self.get_result_with_parser(data, parser)
@@ -150,8 +160,11 @@ class OkxParser(Parser):
         }
 
     def parse_tickers(self, response: dict, market_type: str) -> dict:
-        datas = response["data"]
+        response = self.check_response(response)
+        if response["code"] != 200:
+            return response
 
+        datas = response["data"]
         results = []
         for data in datas:
             result = self.parse_ticker(data, market_type)
@@ -171,8 +184,11 @@ class OkxParser(Parser):
         }
 
     def parse_klines(self, response: dict, market_type: str) -> dict:
-        datas = response["data"]
+        response = self.check_response(response)
+        if response["code"] != 200:
+            return response
 
+        datas = response["data"]
         results = {}
         for data in datas:
             result = self.parse_kline(data, market_type)

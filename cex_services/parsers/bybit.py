@@ -5,6 +5,10 @@ from .base import Parser
 
 
 class BybitParser(Parser):
+    @staticmethod
+    def check_response(response: dict):
+        pass
+
     @property
     def spot_exchange_info_parser(self) -> dict:
         return {

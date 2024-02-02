@@ -31,3 +31,11 @@ class Kucoin(object):
         )
 
         return {**spot, **futures}
+
+    async def get_tickers(self, market_type: str = None) -> dict:
+        if market_type == "spot":
+            return self.parser.parse_spot_tickers(await self.spot._get_tickers())
+        elif market_type == "futures":
+            pass
+        else:
+            pass

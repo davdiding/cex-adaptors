@@ -4,9 +4,9 @@ from .base import Parser
 class KucoinParser(Parser):
     def check_response(self, response: dict):
         if response.get("code") == "200000":
-            return response.get("data")
+            return {"code": 200, "status": "success", "data": response["data"]}
         else:
-            raise Exception(f"Kucoin API Error: {response}")
+            raise {"code": 400, "status": "error", "data": response}
 
     @property
     def spot_exchange_info_parser(self) -> dict:
@@ -59,11 +59,30 @@ class KucoinParser(Parser):
         }
 
     def parse_exchange_info(self, response: dict, parser: dict) -> dict:
-        datas = self.check_response(response)
+        response = self.check_response(response)
+        if response["code"] != 200:
+            return response
 
+        datas = response["data"]
         results = {}
         for data in datas:
             result = self.get_result_with_parser(data, parser)
             id = self.parse_unified_id(result)
             results[id] = result
         return results
+
+    def parse_spot_tickers(self, response: dict) -> dict:
+        response = self.check_response(response)
+        if response["code"] != 200:
+            return response
+
+        datas = response["data"]
+        results = {}
+        for data in datas:
+            id = None
+            result = self.parse_ticker(data)
+            results[id] = result
+        return results
+
+    def parse_ticker(self, response: dict) -> dict:
+        pass

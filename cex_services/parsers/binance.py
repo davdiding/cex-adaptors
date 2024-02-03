@@ -88,7 +88,8 @@ class BinanceParser(Parser):
         }
 
     def parse_tickers(self, response: dict, market_type: str) -> list:
-        datas = response
+        response = self.check_response(response)
+        datas = response["data"]
         results = []
         for data in datas:
             result = self.parse_ticker(data, market_type)
@@ -132,7 +133,9 @@ class BinanceParser(Parser):
         }
 
     def parse_klines(self, response: list, market_type: str) -> list:
-        datas = response
+        response = self.check_response(response)
+        datas = response["data"]
+
         results = {}
         for data in datas:
             result = self.parse_kline(data, market_type)

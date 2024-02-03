@@ -7,7 +7,18 @@ from .base import Parser
 class BybitParser(Parser):
     @staticmethod
     def check_response(response: dict):
-        pass
+        if response["retCode"] != 0:
+            return {
+                "code": 400,
+                "status": "error",
+                "data": response,
+            }
+        else:
+            return {
+                "code": 200,
+                "status": "success",
+                "data": response["result"]["list"],
+            }
 
     @property
     def spot_exchange_info_parser(self) -> dict:
@@ -60,7 +71,8 @@ class BybitParser(Parser):
         }
 
     def parse_exchange_info(self, response: dict, parser: dict) -> dict:
-        datas = response["result"]["list"]
+        response = self.check_response(response)
+        datas = response["data"]
 
         results = {}
         for data in datas:
@@ -70,7 +82,8 @@ class BybitParser(Parser):
         return results
 
     def parse_tickers(self, response: dict, market_type: str) -> list:
-        datas = response["result"]["list"]
+        response = self.check_response(response)
+        datas = response["data"]
 
         results = []
         for data in datas:

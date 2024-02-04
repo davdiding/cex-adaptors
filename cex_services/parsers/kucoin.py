@@ -9,6 +9,10 @@ class KucoinParser(Parser):
         else:
             raise {"code": 400, "status": "error", "data": response}
 
+    def parse_kucoin_base_currency(self, base: str) -> str:
+        base = base.replace("XBT", "BTC")
+        return self.parse_base_currency(base)
+
     @property
     def spot_exchange_info_parser(self) -> dict:
         return {
@@ -20,7 +24,7 @@ class KucoinParser(Parser):
             "is_linear": True,
             "is_inverse": False,
             "symbol": (lambda x: self.parse_unified_symbol(x["baseCurrency"], x["quoteCurrency"])),
-            "base": (lambda x: self.parse_base_currency(x["baseCurrency"])),
+            "base": (lambda x: self.parse_kucoin_base_currency(x["baseCurrency"])),
             "quote": (lambda x: str(x["quoteCurrency"])),
             "settle": (lambda x: str(x["quoteCurrency"])),
             "multiplier": 1,  # spot multiplier default 1
@@ -45,14 +49,14 @@ class KucoinParser(Parser):
             "is_linear": (lambda x: True),  # Not yet implemented
             "is_inverse": (lambda x: False),  # Not yet implemented
             "symbol": (lambda x: self.parse_unified_symbol(x["baseCurrency"], x["quoteCurrency"])),
-            "base": (lambda x: self.parse_base_currency(x["baseCurrency"])),
+            "base": (lambda x: self.parse_kucoin_base_currency(x["baseCurrency"])),
             "quote": (lambda x: str(x["quoteCurrency"])),
             "settle": (lambda x: str(x["quoteCurrency"])),
-            "multiplier": (lambda x: abs(int(x["multiplier"]))),
+            "multiplier": (lambda x: self.parse_multiplier(x["baseCurrency"])),
             "leverage": (lambda x: x["maxLeverage"]),
             "listing_time": (lambda x: x["firstOpenDate"] if x["firstOpenDate"] else None),
             "expiration_time": (lambda x: x["expireDate"] if x["expireDate"] else None),
-            "contract_size": 1,  # Not yet implemented
+            "contract_size": (lambda x: abs(int(x["multiplier"]))),
             "tick_size": None,  # Not yet implemented
             "min_order_size": None,  # Not yet implemented
             "max_order_size": None,  # Not yet implemented

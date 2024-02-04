@@ -5,6 +5,8 @@ from .parsers.gateio import GateioParser
 class Gateio(object):
     name = "gateio"
 
+    FUTURES_SETTLE = ["btc", "usdt", "usd"]
+
     def __init__(self):
         self.exchange = GateioClient()
         self.parser = GateioParser()
@@ -24,4 +26,13 @@ class Gateio(object):
             await self.exchange._get_currency_pairs(), self.parser.spot_exchange_info_parser
         )
 
-        return {**spot}
+        futures = {}
+        for settle in self.FUTURES_SETTLE:
+            future = self.parser.parse_exchange_info(
+                await self.exchange._get_futures_info(settle),
+                self.parser.futures_exchange_info_parser,
+                settle=settle.upper(),
+            )
+            futures.update(future)
+
+        return {**spot, **futures}

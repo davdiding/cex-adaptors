@@ -11,6 +11,7 @@ class Parser:
     PERPETUAL_TYPES = ["SWAP", "LinearPerpetual", "InversePerpetual", "PERPETUAL"]
     LINEAR_TYPES = ["LinearFutures", "LinearPerpetual", "linear"]
     INVERSE_TYPES = ["InverseFutures", "InversePerpetual", "inverse"]
+    STABLE_CURRENCY = ["USDT", "USDC"]
 
     def get_result_with_parser(self, data: dict, parser: dict) -> dict:
         results = {}

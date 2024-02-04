@@ -20,6 +20,8 @@ class Gateio(object):
         return instance
 
     async def get_exchange_info(self):
-        spot = self.parser.parse_exchange_info(await self.exchange._get_currency_pairs(), None)
+        spot = self.parser.parse_exchange_info(
+            await self.exchange._get_currency_pairs(), self.parser.spot_exchange_info_parser
+        )
 
         return {**spot}

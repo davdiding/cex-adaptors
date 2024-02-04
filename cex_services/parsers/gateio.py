@@ -35,7 +35,7 @@ class GateioParser(Parser):
         }
 
     @property
-    def futures_exchange_info_parser(self) -> dict:
+    def perp_exchange_info_parser(self) -> dict:
         return {
             "active": True,
             "is_spot": False,
@@ -46,11 +46,11 @@ class GateioParser(Parser):
             "is_inverse": (lambda x: False if x["settle"] in self.STABLE_CURRENCY else True),
             "symbol": (
                 lambda x: self.parse_unified_symbol(
-                    self.parse_futures_name(x["name"])["base"], self.parse_futures_name(x["name"])["quote"]
+                    self.parse_perp_name(x["name"])["base"], self.parse_perp_name(x["name"])["quote"]
                 )
             ),
-            "base": (lambda x: self.parse_futures_name(x["name"])["base"]),
-            "quote": (lambda x: self.parse_futures_name(x["name"])["quote"]),
+            "base": (lambda x: self.parse_perp_name(x["name"])["base"]),
+            "quote": (lambda x: self.parse_perp_name(x["name"])["quote"]),
             "settle": (lambda x: str(x["settle"])),
             "multiplier": None,
             "leverage": None,
@@ -63,10 +63,46 @@ class GateioParser(Parser):
             "raw_data": (lambda x: x),
         }
 
+    @property
+    def futures_exchange_info_parser(self) -> dict:
+        return {
+            "active": (lambda x: not x["in_delisting"]),
+            "is_spot": False,
+            "is_margin": False,
+            "is_futures": True,
+            "is_perp": False,
+            "is_linear": (lambda x: True if x["settle"] in self.STABLE_CURRENCY else False),
+            "is_inverse": (lambda x: False if x["settle"] in self.STABLE_CURRENCY else True),
+            "symbol": (
+                lambda x: self.parse_unified_symbol(
+                    self.parse_futures_name(x["name"])["base"], self.parse_futures_name(x["name"])["quote"]
+                )
+            ),
+            "base": (lambda x: self.parse_futures_name(x["name"])["base"]),
+            "quote": (lambda x: self.parse_futures_name(x["name"])["quote"]),
+            "settle": (lambda x: str(x["settle"])),
+            "multiplier": (lambda x: self.parse_multiplier(x["name"].split("_")[0])),
+            "leverage": 1,  # Not yet implemented
+            "listing_time": None,
+            "expiration_time": (lambda x: int(x["expire_time"]) * 1000),
+            "contract_size": None,
+            "tick_size": None,
+            "min_order_size": None,
+            "max_order_size": None,
+            "raw_data": (lambda x: x),
+        }
+
+    def parse_perp_name(self, name: str) -> dict:
+        return {
+            "base": self.parse_base_currency(name.split("_")[0]),
+            "quote": name.split("_")[1],
+        }
+
     def parse_futures_name(self, name: str) -> dict:
         return {
             "base": self.parse_base_currency(name.split("_")[0]),
             "quote": name.split("_")[1],
+            "datetime": name.split("_")[2],
         }
 
     def parse_exchange_info(self, response: dict, parser: dict, **kwargs) -> dict:

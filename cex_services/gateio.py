@@ -26,13 +26,20 @@ class Gateio(object):
             await self.exchange._get_currency_pairs(), self.parser.spot_exchange_info_parser
         )
 
-        futures = {}
+        perps = {}
         for settle in self.FUTURES_SETTLE:
-            future = self.parser.parse_exchange_info(
-                await self.exchange._get_futures_info(settle),
-                self.parser.futures_exchange_info_parser,
+            perp = self.parser.parse_exchange_info(
+                await self.exchange._get_perp_info(settle),
+                self.parser.perp_exchange_info_parser,
                 settle=settle.upper(),
             )
-            futures.update(future)
+            perps.update(perp)
 
-        return {**spot, **futures}
+        settle = "usdt"
+        futures = self.parser.parse_exchange_info(
+            await self.exchange._get_futures_info(settle),
+            self.parser.futures_exchange_info_parser,
+            settle=settle.upper(),
+        )
+
+        return {**spot, **perps, **futures}

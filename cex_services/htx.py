@@ -22,5 +22,7 @@ class Htx(object):
         return instance
 
     async def get_exchange_info(self, market_type: str = None):
-        spot = self.parser.parse_exchange_info(await self.spot._get_exchange_info(), None)
+        spot = self.parser.parse_exchange_info(
+            await self.spot._get_exchange_info(), self.parser.spot_exchange_info_parser
+        )
         return {**spot}

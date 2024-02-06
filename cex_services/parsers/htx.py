@@ -37,8 +37,51 @@ class HtxParser(Parser):
             "raw_data": (lambda x: x),
         }
 
+    @property
+    def linear_exchange_info_parser(self) -> dict:
+        return {
+            "active": (lambda x: x["contract_status"] == 1),
+            "is_spot": False,
+            "is_margin": False,
+            "is_futures": (lambda x: self.parse_is_futures(x["business_type"])),
+            "is_perp": (lambda x: self.parse_is_perpetual(x["business_type"])),
+            "is_linear": True,
+            "is_inverse": False,
+            "symbol": (lambda x: self.parse_unified_symbol(self.parse_pair(x)["base"], self.parse_pair(x)["quote"])),
+            "base": (lambda x: self.parse_base_currency(self.parse_pair(x)["base"])),
+            "quote": (lambda x: self.parse_pair(x)["quote"]),
+            "settle": (lambda x: self.parse_pair(x)["quote"]),
+            "multiplier": 1,
+            "leverage": None,  # not yet implemented
+            "listing_time": (lambda x: self.parse_str_to_timestamp(x["create_date"]) if x["create_date"] else None),
+            "expiration_time": (
+                lambda x: self.parse_str_to_timestamp(x["delivery_date"]) if x["delivery_date"] else None
+            ),
+            "contract_size": (lambda x: float(x["contract_size"])),
+            "tick_size": (lambda x: float(x["price_tick"])),
+            "min_order_size": None,  # not yet implemented
+            "max_order_size": None,  # not yet implemented
+            "raw_data": (lambda x: x),
+        }
+
+    @staticmethod
+    def parse_pair(response: dict) -> dict:
+        if response["delivery_date"]:
+            return {
+                "base": response["pair"].split("-")[0],
+                "quote": response["pair"].split("-")[1],
+                "datetime": response["delivery_date"],
+            }
+        else:
+            return {
+                "base": response["pair"].split("-")[0],
+                "quote": response["pair"].split("-")[1],
+            }
+
     def parse_exchange_info(self, response: dict, parser: dict):
         response = self.check_response(response)
+        if response["code"] != 200:
+            return response
 
         results = {}
         datas = response["data"]

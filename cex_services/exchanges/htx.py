@@ -18,3 +18,6 @@ class HtxFutures(BaseClient):
     def __init__(self):
         super().__init__()
         self.base_endpoint = self.BASE_URL
+
+    def _get_linear_contract_info(self):
+        return self._get(self.base_endpoint + "/linear-swap-api/v1/swap_contract_info")

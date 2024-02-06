@@ -1,3 +1,5 @@
+import json
+
 import aiohttp
 
 
@@ -10,7 +12,11 @@ class BaseClient(object):
 
     async def _handle_response(self, response: aiohttp.ClientResponse):
         if response.status == 200:
-            return await response.json()
+            try:
+                return await response.json()
+            except Exception as e:
+                print(e)
+                return json.loads(await response.text())
         else:
             raise Exception(f"Error {response.status} {response.reason} {await response.text()}")
 

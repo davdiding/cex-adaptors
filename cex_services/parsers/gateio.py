@@ -78,10 +78,10 @@ class GateioParser(Parser):
                     self.parse_futures_name(x["name"])["base"], self.parse_futures_name(x["name"])["quote"]
                 )
             ),
-            "base": (lambda x: self.parse_futures_name(x["name"])["base"]),
+            "base": (lambda x: self.parse_base_currency(self.parse_futures_name(x["name"])["base"])),
             "quote": (lambda x: self.parse_futures_name(x["name"])["quote"]),
             "settle": (lambda x: str(x["settle"])),
-            "multiplier": (lambda x: self.parse_multiplier(x["name"].split("_")[0])),
+            "multiplier": (lambda x: self.parse_multiplier(self.parse_futures_name(x["name"])["base"])),
             "leverage": 1,  # Not yet implemented
             "listing_time": None,
             "expiration_time": (lambda x: int(x["expire_time"]) * 1000),
@@ -94,13 +94,13 @@ class GateioParser(Parser):
 
     def parse_perp_name(self, name: str) -> dict:
         return {
-            "base": self.parse_base_currency(name.split("_")[0]),
+            "base": name.split("_")[0],
             "quote": name.split("_")[1],
         }
 
     def parse_futures_name(self, name: str) -> dict:
         return {
-            "base": self.parse_base_currency(name.split("_")[0]),
+            "base": name.split("_")[0],
             "quote": name.split("_")[1],
             "datetime": name.split("_")[2],
         }

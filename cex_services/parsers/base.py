@@ -7,8 +7,8 @@ class Parser:
     MULTIPLIER = ["1000000", "100000", "10000", "1000", "100", "10"]
     SPOT_TYPES = ["SPOT"]
     MARGIN_TYPES = ["MARGIN", "both", "utaOnly", "normalOnly"]
-    FUTURES_TYPES = ["FUTURES", "LinearFutures", "InverseFutures", "NEXT_QUARTER", "CURRENT_QUARTER"]
-    PERPETUAL_TYPES = ["SWAP", "LinearPerpetual", "InversePerpetual", "PERPETUAL"]
+    FUTURES_TYPES = ["FUTURES", "LinearFutures", "InverseFutures", "NEXT_QUARTER", "CURRENT_QUARTER", "futures"]
+    PERPETUAL_TYPES = ["SWAP", "LinearPerpetual", "InversePerpetual", "PERPETUAL", "swap"]
     LINEAR_TYPES = ["LinearFutures", "LinearPerpetual", "linear"]
     INVERSE_TYPES = ["InverseFutures", "InversePerpetual", "inverse"]
     STABLE_CURRENCY = ["USDT", "USDC"]
@@ -85,3 +85,7 @@ class Parser:
             info = query_dict(info, f"is_{market_type} == True")
 
         return {v["raw_data"][key]: k for k, v in info.items()}
+
+    @staticmethod
+    def parse_str_to_timestamp(_str: str, _format: str = "%Y%m%d") -> int:
+        return int(datetime.strptime(_str, _format).timestamp() * 1000)

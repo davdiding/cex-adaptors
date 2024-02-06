@@ -25,4 +25,7 @@ class Htx(object):
         spot = self.parser.parse_exchange_info(
             await self.spot._get_exchange_info(), self.parser.spot_exchange_info_parser
         )
-        return {**spot}
+        linear = self.parser.parse_exchange_info(
+            await self.futures._get_linear_contract_info(), self.parser.linear_exchange_info_parser
+        )
+        return {**spot, **linear}

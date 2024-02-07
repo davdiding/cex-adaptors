@@ -21,3 +21,9 @@ class HtxFutures(BaseClient):
 
     def _get_linear_contract_info(self):
         return self._get(self.base_endpoint + "/linear-swap-api/v1/swap_contract_info")
+
+    def _get_inverse_futures_info(self):
+        return self._get(self.base_endpoint + "/api/v1/contract_contract_info")
+
+    def _get_inverse_perp_info(self):
+        return self._get(self.base_endpoint + "/swap-api/v1/swap_contract_info")

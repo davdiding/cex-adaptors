@@ -4,7 +4,7 @@ from .base import Parser
 class BinanceParser(Parser):
     @staticmethod
     def check_response(response: dict):
-        return {"code": 200, "status": "success", "data": response["symbols"]}
+        return {"code": 200, "status": "success", "data": response}
 
     @property
     def spot_exchange_info_parser(self):
@@ -62,7 +62,7 @@ class BinanceParser(Parser):
         if response["code"] != 200:
             return response
 
-        datas = response["data"]
+        datas = response["data"]["symbols"]
         results = {}
         for data in datas:
             result = self.get_result_with_parser(data, parser)
@@ -71,7 +71,12 @@ class BinanceParser(Parser):
 
         return results
 
-    def parse_ticker(self, response: dict, market_type: str, info: dict) -> dict:
+    def parse_ticker(self, response: dict, info: dict) -> dict:
+        base_volume = float(response["volume"] if info["is_linear"] else response["baseVolume"])
+        quote_volume = float(response["quoteVolume"] if info["is_linear"] else response["volume"])
+
+        quote_volume *= info["contract_size"] if info["is_perp"] or info["is_futures"] else 1
+
         return {
             "symbol": response["symbol"],
             "open_time": int(response["openTime"]),
@@ -80,21 +85,31 @@ class BinanceParser(Parser):
             "high": float(response["highPrice"]),
             "low": float(response["lowPrice"]),
             "last_price": float(response["lastPrice"]),
-            "base_volume": float(response["volume"] if market_type != "inverse" else response["baseVolume"]),
-            "quote_volume": float(response["quoteVolume"] if market_type != "inverse" else response["volume"]),
+            "base_volume": base_volume,
+            "quote_volume": quote_volume,
             "price_change": float(response["priceChange"]),
             "price_change_percent": float(response["priceChangePercent"]) / 100,
             "raw_data": response,
         }
 
+    def get_id_map(self, infos: dict, market_type: str) -> dict:
+        infos = self.query_dict(infos, {f"is_{market_type}": True})
+        return {v["raw_data"]["symbol"]: k for k, v in infos.items()}
+
     def parse_tickers(self, response: dict, market_type: str, infos: dict) -> dict:
         response = self.check_response(response)
+        if response["code"] != 200:
+            return response
 
         datas = response["data"]
-        results = []
+        id_map = self.get_id_map(infos, market_type)
+        results = {}
         for data in datas:
-            result = self.parse_ticker(data, market_type)
-            results.append(result)
+            if data["symbol"] not in id_map:
+                print(data["symbol"])
+                continue
+            instrument_id = id_map[data["symbol"]]
+            results[instrument_id] = self.parse_ticker(data, infos[instrument_id])
         return results
 
     def parse_kline(self, response: list, market_type: str) -> dict:

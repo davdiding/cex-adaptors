@@ -1,7 +1,7 @@
 from typing import Literal, Optional
 
 from .exchanges.binance import BinanceInverse, BinanceLinear, BinanceSpot
-from .parsers.binance import BinanceParser as parser
+from .parsers.binance import BinanceParser
 from .utils import query_dict, sort_dict
 
 
@@ -12,7 +12,7 @@ class Binance(object):
         self.spot = BinanceSpot()
         self.linear = BinanceLinear()
         self.inverse = BinanceInverse()
-        self.parser = parser()
+        self.parser = BinanceParser()
 
         self.exchange_info = {}
 
@@ -50,22 +50,15 @@ class Binance(object):
 
         tickers = [(self.spot, "spot"), (self.linear, "linear"), (self.inverse, "inverse")]
 
-        for exchange, market_type in tickers:
-            parsed_tickers = self.parser.parse_tickers(await exchange._get_tickers(), market_type)
-            id_map = self.parser.get_id_symbol_map(self.exchange_info, market_type)
+        for exchange, _market_type in tickers:
+            parsed_tickers = self.parser.parse_tickers(await exchange._get_tickers(), _market_type, self.exchange_info)
+            results.update(parsed_tickers)
 
-            for ticker in parsed_tickers:
-                symbol = ticker["symbol"]
-                if symbol not in id_map:
-                    print(symbol)
-                    continue
-                id = id_map[symbol]
-                info = self.exchange_info[id]
-                if info["is_perp"] or info["is_futures"]:
-                    ticker["quote_volume"] *= info["contract_size"]
-                results[id] = ticker
-
-        return results
+        if market_type:
+            ids = list(self.parser.query_dict(self.exchange_info, {f"is_{market_type}": True}).keys())
+            return self.parser.query_dict_by_keys(results, ids)
+        else:
+            return results
 
     async def get_klines(self, id: str, interval: str, start: int = None, end: int = None, num: int = 500):
         print(id)

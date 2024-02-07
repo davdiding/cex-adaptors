@@ -67,11 +67,17 @@ class Binance(object):
         else:
             return results
 
-    async def get_klines(self, id: str, interval: str, start: int = None, end: int = None, num: int = 500):
-        print(id)
-        _symbol = self.exchange_info[id]["raw_data"]["symbol"]
-        market_type = self.parser.get_market_type(self.exchange_info[id])
+    async def get_klines(self, instrument_id: str, interval: str, start: int = None, end: int = None, num: int = 500):
+        _symbol = self.exchange_info[instrument_id]["raw_data"]["symbol"]
+        _interval = self.parser.get_interval(interval)
         limit = 1000
+        market_type = self.parser.get_market_type(self.exchange_info[instrument_id])
+
+        params = {
+            "symbol": _symbol,
+            "interval": _interval,
+            "limit": limit,
+        }
 
         method_map = {
             "spot": self.spot._get_klines,
@@ -85,32 +91,29 @@ class Binance(object):
         if start and end:
             query_end = end
             while True:
-                klines = self.parser.parse_klines(
-                    await method_map[market_type](_symbol, interval, endTime=query_end, limit=limit), market_type
-                )
+                params["endTime"] = query_end
+                klines = self.parser.parse_klines(await method_map[market_type](**params), market_type)
                 if not klines:
                     break
 
                 results.update(klines)
-                query_end = list(klines.keys())[0]
+                query_end = sorted(list(klines.keys()))[0]
                 if len(klines) < limit or query_end <= start:
                     break
                 continue
-
-            return {id: sort_dict({k: v for k, v in results.items() if end >= k >= start}, ascending=True)}
+            return sort_dict({k: v for k, v in results.items() if end >= k >= start}, ascending=True)
 
         elif num:
             while True:
+                params.update({"endTime": query_end} if query_end else {})
                 klines = self.parser.parse_klines(
-                    await method_map[market_type](_symbol, interval, limit=limit)
-                    if not query_end
-                    else await method_map[market_type](_symbol, interval, endTime=query_end, limit=limit),
+                    await method_map[market_type](**params),
                     market_type,
                 )
                 results.update(klines)
                 if len(klines) < limit or len(results) >= num:
                     break
-                query_end = list(klines.keys())[0]
+                query_end = sorted(list(klines.keys()))[0]
                 continue
 
-            return {id: sort_dict(results, ascending=True, num=num)}
+            return sort_dict(results, ascending=True, num=num)

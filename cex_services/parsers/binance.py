@@ -151,7 +151,7 @@ class BinanceParser(Parser):
             }
         }
 
-    def parse_klines(self, response: list, market_type: str) -> list:
+    def parse_klines(self, response: list, market_type: str) -> dict:
         response = self.check_response(response)
         datas = response["data"]
 
@@ -163,6 +163,9 @@ class BinanceParser(Parser):
 
     def get_symbol(self, info: dict) -> str:
         return f'{info["base"]}{info["quote"]}'
+
+    def get_interval(self, interval: str) -> str:
+        return interval
 
     def get_market_type(self, info: dict):
         if info["is_spot"]:

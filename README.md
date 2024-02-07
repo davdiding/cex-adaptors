@@ -30,10 +30,11 @@ if __name__ == "__main__":
 | Bybit    | 1.0.1   | Yes        | No          |
 | Gate.io  | 1.0.1   | Yes        | No          |
 | Kucoin   | 1.0.1   | Yes        | No          |
+| HTX      | 1.0.1   | Yes        | No          |
 
 ## Supported API endpoints
 | Endpoint            | Exchanges                            |
 |---------------------|--------------------------------------|
-| `get_exchange_info` | Binance, OKX, Bybit, Gate.io, Kucoin |
+| `get_exchange_info` | Binance, OKX, Bybit, Gate.io, Kucoin, HTX |
 | `get_tickers`       | Binance, OKX                         |
 | `get_klines`        | Binance, OKX                         |

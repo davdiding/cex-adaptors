@@ -1,7 +1,5 @@
 from datetime import datetime, timedelta
 
-import pandas as pd
-
 from ..utils import query_dict
 
 
@@ -103,4 +101,4 @@ class Parser:
 
     @staticmethod
     def query_dict_by_keys(datas: dict, keys: list) -> dict:
-        return pd.DataFrame(datas)[keys].to_dict(orient="records")[0]
+        return {key: datas[key] for key in keys if key in datas}

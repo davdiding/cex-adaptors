@@ -159,16 +159,21 @@ class OkxParser(Parser):
             "raw_data": response,
         }
 
-    def parse_tickers(self, response: dict, market_type: str) -> dict:
+    def get_id_map(self, infos: dict, market_type: str) -> dict:
+        infos = self.query_dict(infos, {f"is_{market_type}": True})
+        return {v["raw_data"]["instId"]: k for k, v in infos.items()}
+
+    def parse_tickers(self, response: dict, market_type: str, infos: dict) -> dict:
         response = self.check_response(response)
         if response["code"] != 200:
             return response
-
         datas = response["data"]
-        results = []
+
+        id_map = self.get_id_map(infos, market_type)
+        results = {}
         for data in datas:
-            result = self.parse_ticker(data, market_type)
-            results.append(result)
+            instrument_id = id_map[data["instId"]]
+            results[instrument_id] = self.parse_ticker(data, market_type)
         return results
 
     @staticmethod

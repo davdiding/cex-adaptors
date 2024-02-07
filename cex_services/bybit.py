@@ -54,7 +54,7 @@ class Bybit(object):
                 results[id] = ticker
 
         if market_type:
-            ids = self.parser.query_dict(self.exchange_info, {f"is_{market_type}": True})
+            ids = list(self.parser.query_dict(self.exchange_info, {f"is_{market_type}": True}).keys())
             return self.parser.query_dict_by_keys(results, ids)
         else:
             return results

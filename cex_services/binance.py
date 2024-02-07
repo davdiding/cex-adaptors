@@ -1,3 +1,5 @@
+from typing import Literal, Optional
+
 from .exchanges.binance import BinanceInverse, BinanceLinear, BinanceSpot
 from .parsers.binance import BinanceParser as parser
 from .utils import query_dict, sort_dict
@@ -43,7 +45,7 @@ class Binance(object):
 
         return {id: self.parser.parse_ticker(await self.spot._get_ticker(_symbol))}
 
-    async def get_tickers(self):
+    async def get_tickers(self, market_type: Optional[Literal["spot", "margin", "futures", "perp"]] = None) -> dict:
         results = {}
 
         tickers = [(self.spot, "spot"), (self.linear, "linear"), (self.inverse, "inverse")]

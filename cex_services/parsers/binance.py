@@ -71,7 +71,7 @@ class BinanceParser(Parser):
 
         return results
 
-    def parse_ticker(self, response: dict, market_type: str) -> dict:
+    def parse_ticker(self, response: dict, market_type: str, info: dict) -> dict:
         return {
             "symbol": response["symbol"],
             "open_time": int(response["openTime"]),
@@ -87,8 +87,9 @@ class BinanceParser(Parser):
             "raw_data": response,
         }
 
-    def parse_tickers(self, response: dict, market_type: str) -> list:
+    def parse_tickers(self, response: dict, market_type: str, infos: dict) -> dict:
         response = self.check_response(response)
+
         datas = response["data"]
         results = []
         for data in datas:

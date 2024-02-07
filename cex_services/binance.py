@@ -40,10 +40,17 @@ class Binance(object):
         result = {**spot, **linear, **inverse}
         return result if not market_type else query_dict(result, f"is_{market_type} == True")
 
-    async def get_ticker(self, id: str):
-        _symbol = self.exchange_info[id]["raw_data"]["symbol"]
+    async def get_ticker(self, instrument_id: str):
+        _symbol = self.exchange_info[instrument_id]["raw_data"]["symbol"]
+        info = self.exchange_info[instrument_id]
+        market_type = self.parser.get_market_type(info)
 
-        return {id: self.parser.parse_ticker(await self.spot._get_ticker(_symbol))}
+        if market_type == "spot":
+            return {instrument_id: self.parser.parse_ticker(await self.spot._get_ticker(_symbol), info)}
+        elif market_type == "linear":
+            return {instrument_id: self.parser.parse_ticker(await self.linear._get_ticker(_symbol), info)}
+        elif market_type == "inverse":
+            return {instrument_id: self.parser.parse_ticker(await self.inverse._get_ticker(_symbol), info)}
 
     async def get_tickers(self, market_type: Optional[Literal["spot", "margin", "futures", "perp"]] = None) -> dict:
         results = {}

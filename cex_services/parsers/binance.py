@@ -72,6 +72,9 @@ class BinanceParser(Parser):
         return results
 
     def parse_ticker(self, response: dict, info: dict) -> dict:
+        if isinstance(response, list):
+            response = response[0]
+
         base_volume = float(response["volume"] if info["is_linear"] else response["baseVolume"])
         quote_volume = float(response["quoteVolume"] if info["is_linear"] else response["volume"])
 

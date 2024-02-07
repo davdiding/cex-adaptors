@@ -1,3 +1,5 @@
+from typing import Literal, Optional
+
 from .exchanges.bybit import BybitUnified
 from .parsers.bybit import BybitParser
 
@@ -32,15 +34,15 @@ class Bybit(object):
 
         return {**spot, **linear, **inverse}
 
-    async def get_tickers(self) -> dict:
+    async def get_tickers(self, market_type: Optional[Literal["spot", "margin", "futures", "perp"]] = None):
 
         results = {}
 
         tickers = ["spot", "linear", "inverse"]
 
-        for market_type in tickers:
-            parsed_tickers = self.parser.parse_tickers(await self.bybit._get_tickers(market_type), market_type)
-            id_map = self.parser.get_id_symbol_map(self.exchange_info, market_type)
+        for _market_type in tickers:
+            parsed_tickers = self.parser.parse_tickers(await self.bybit._get_tickers(_market_type), _market_type)
+            id_map = self.parser.get_id_symbol_map(self.exchange_info, _market_type)
 
             for ticker in parsed_tickers:
                 symbol = ticker["symbol"]
@@ -51,4 +53,8 @@ class Bybit(object):
 
                 results[id] = ticker
 
-        return results
+        if market_type:
+            ids = self.parser.query_dict(self.exchange_info, {f"is_{market_type}": True})
+            return self.parser.query_dict_by_keys(results, ids)
+        else:
+            return results

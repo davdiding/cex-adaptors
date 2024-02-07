@@ -1,5 +1,7 @@
 from datetime import datetime, timedelta
 
+import pandas as pd
+
 from ..utils import query_dict
 
 
@@ -89,3 +91,16 @@ class Parser:
     @staticmethod
     def parse_str_to_timestamp(_str: str, _format: str = "%Y%m%d") -> int:
         return int(datetime.strptime(_str, _format).timestamp() * 1000)
+
+    @staticmethod
+    def query_dict(datas: dict, query: dict) -> dict:
+        filtered_data = {}
+        for key, value in datas.items():
+            if all(item in value.items() for item in query.items()):
+                filtered_data[key] = value
+
+        return filtered_data
+
+    @staticmethod
+    def query_dict_by_keys(datas: dict, keys: list) -> dict:
+        return pd.DataFrame(datas)[keys].to_dict(orient="records")[0]

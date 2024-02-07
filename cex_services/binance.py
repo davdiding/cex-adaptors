@@ -2,7 +2,7 @@ from typing import Literal, Optional
 
 from .exchanges.binance import BinanceInverse, BinanceLinear, BinanceSpot
 from .parsers.binance import BinanceParser
-from .utils import query_dict, sort_dict
+from .utils import sort_dict
 
 
 class Binance(object):
@@ -27,7 +27,7 @@ class Binance(object):
         instance.exchange_info = await instance.get_exchange_info()
         return instance
 
-    async def get_exchange_info(self, market_type: str = None):
+    async def get_exchange_info(self, market_type: Optional[Literal["spot", "margin", "futures", "perp"]] = None):
         spot = self.parser.parse_exchange_info(
             await self.spot._get_exchange_info(), self.parser.spot_exchange_info_parser
         )
@@ -38,7 +38,7 @@ class Binance(object):
             await self.inverse._get_exchange_info(), self.parser.futures_exchange_info_parser("inverse")
         )
         result = {**spot, **linear, **inverse}
-        return result if not market_type else query_dict(result, f"is_{market_type} == True")
+        return result if not market_type else self.parser.query_dict(result, {f"is_{market_type}": True})
 
     async def get_ticker(self, instrument_id: str):
         _symbol = self.exchange_info[instrument_id]["raw_data"]["symbol"]

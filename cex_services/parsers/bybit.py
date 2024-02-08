@@ -5,6 +5,22 @@ from .base import Parser
 
 
 class BybitParser(Parser):
+    INTERVAL_MAP = {
+        "1m": "1",
+        "3m": "3",
+        "5m": "5",
+        "15m": "15",
+        "30m": "30",
+        "1h": "60",
+        "2h": "120",
+        "4h": "240",
+        "6h": "360",
+        "12h": "720",
+        "1d": "D",
+        "1M": "M",
+        "1w": "W",
+    }
+
     @staticmethod
     def check_response(response: dict):
         if response["retCode"] != 0:
@@ -108,3 +124,25 @@ class BybitParser(Parser):
             "price_change_percent": float(response["price24hPcnt"]),
             "raw_data": response,
         }
+
+    def get_interval(self, interval: str) -> str:
+        if interval not in self.INTERVAL_MAP:
+            raise ValueError(f"Invalid interval: {interval}")
+        return self.INTERVAL_MAP[interval]
+
+    def parse_klines(self, response: dict) -> dict:
+        response = self.check_response(response)
+        if response["code"] != 200:
+            return response
+
+        results = {}
+        datas = response["data"]
+        for data in datas:
+            result = self.parse_kline(data)
+            timestamp = int(result["open_time"])
+            results[timestamp] = result
+
+        return results
+
+    def parse_kline(self, response: dict) -> dict:
+        return {}

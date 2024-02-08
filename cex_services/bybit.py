@@ -60,7 +60,13 @@ class Bybit(object):
             return results
 
     async def get_klines(self, instrument_id: str, interval: str, start: int = None, end: int = None, num: int = 30):
+        _symbol = self.exchange_info[instrument_id]["raw_data"]["symbol"]
+        _interval = self.parser.get_interval(interval)
+        limit = 1000
 
+        params = {"symbol": _symbol, "interval": _interval, "limit": limit}
+
+        results = {}
         if start and end:
             pass
         elif start:
@@ -68,6 +74,9 @@ class Bybit(object):
         elif end and num:
             pass
         elif num:
-            pass
+            klines = self.parser.parse_klines(await self.bybit._get_klines(**params))
+            results.update(klines)
         else:
             return {"code": 400, "msg": "invalid params"}
+
+        return results

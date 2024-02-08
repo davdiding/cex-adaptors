@@ -58,3 +58,16 @@ class Bybit(object):
             return self.parser.query_dict_by_keys(results, ids)
         else:
             return results
+
+    async def get_klines(self, instrument_id: str, interval: str, start: int = None, end: int = None, num: int = 30):
+
+        if start and end:
+            pass
+        elif start:
+            pass
+        elif end and num:
+            pass
+        elif num:
+            pass
+        else:
+            return {"code": 400, "msg": "invalid params"}

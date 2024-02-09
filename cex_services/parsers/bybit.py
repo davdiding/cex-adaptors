@@ -139,10 +139,27 @@ class BybitParser(Parser):
         datas = response["data"]
         for data in datas:
             result = self.parse_kline(data)
-            timestamp = int(result["open_time"])
+            timestamp = int(data[0])
             results[timestamp] = result
-
         return results
 
+    def get_category(self, info: dict) -> str:
+        if info["is_spot"] or info["is_margin"]:
+            return "spot"
+        elif info["is_linear"]:
+            return "linear"
+        elif info["is_inverse"]:
+            return "inverse"
+        else:
+            raise ValueError(f"Invalid market type: {info}")
+
     def parse_kline(self, response: dict) -> dict:
-        return {}
+        return {
+            "open": float(response[1]),
+            "high": float(response[2]),
+            "low": float(response[3]),
+            "close": float(response[4]),
+            "base_volume": float(response[5]),
+            "quote_volume": float(response[6]),
+            "raw_data": response,
+        }

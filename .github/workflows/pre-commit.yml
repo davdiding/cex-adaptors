@@ -20,7 +20,7 @@ jobs:
       - name: Run pre-commit
         run: pre-commit run --all-files
       - name: Install dependencies
-        run: pip install -r requirements.txt
+        run: pip install -r test_requirements.txt
       - name: Run test codes
         run: python3 tests/test_main.py
         env:

@@ -1,15 +1,23 @@
+import logging
+import unittest
 from datetime import datetime as dt
 from unittest import IsolatedAsyncioTestCase
+
+# from cex_services.binance import Binance
+from cex_services.bybit import Bybit
 
 # from cex_services.gateio import Gateio
 # from cex_services.htx import Htx
 from cex_services.okx import Okx
 
-# from cex_services.binance import Binance
-# from cex_services.bybit import Bybit
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s %(levelname)s:%(name)s:%(message)s", datefmt="%Y-%m-%d %H:%M:%S"
+)
 
 
 class TestOkx(IsolatedAsyncioTestCase):
+    name = "okx"
+
     async def test_get_exchange_info(self):
         okx = await Okx.create()
         response = await okx.get_exchange_info()
@@ -68,7 +76,19 @@ class TestOkx(IsolatedAsyncioTestCase):
         return
 
 
-if __name__ == "__main__":
-    import unittest
+class TestBybit(IsolatedAsyncioTestCase):
+    name = "bybit"
 
-    unittest.main()
+    async def test_exchange_info(self):
+        bybit = Bybit()
+        response = await bybit.get_exchange_info()
+        self.assertTrue(response)
+        return
+
+
+if __name__ == "__main__":
+
+    clss = [TestOkx, TestBybit]
+    for cls in clss:
+        unittest.main(cls, exit=False)
+        logging.info(f"Finished {cls.name} test codes")

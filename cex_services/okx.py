@@ -2,7 +2,7 @@ from .exchanges.okx import OkxUnified
 from .parsers.okx import OkxParser
 
 
-class Okx(OkxUnified):
+class Okx(object):
     name = "okx"
     market_type_map = {"spot": "SPOT", "margin": "MARGIN", "futures": "FUTURES", "perp": "SWAP"}
     _market_type_map = {"SPOT": "spot", "MARGIN": "margin", "FUTURES": "futures", "SWAP": "perp"}
@@ -10,6 +10,7 @@ class Okx(OkxUnified):
     def __init__(self):
         super().__init__()
 
+        self.exchange = OkxUnified()
         self.parser = OkxParser()
         self.exchange_info = {}
 
@@ -19,6 +20,9 @@ class Okx(OkxUnified):
         instance.exchange_info = await instance.get_exchange_info()
         return instance
 
+    async def close(self):
+        await self.exchange.close()
+
     async def get_exchange_info(self, market_type: str = None):
         if market_type:
             parser = (
@@ -27,21 +31,21 @@ class Okx(OkxUnified):
                 else self.parser.futures_perp_exchange_info_parser
             )
             return self.parser.parse_exchange_info(
-                await self._get_exchange_info(self.market_type_map[market_type]), parser
+                await self.exchange._get_exchange_info(self.market_type_map[market_type]), parser
             )
 
         else:
             spot = self.parser.parse_exchange_info(
-                await self._get_exchange_info("SPOT"), self.parser.spot_margin_exchange_info_parser
+                await self.exchange._get_exchange_info("SPOT"), self.parser.spot_margin_exchange_info_parser
             )
             margin = self.parser.parse_exchange_info(
-                await self._get_exchange_info("MARGIN"), self.parser.spot_margin_exchange_info_parser
+                await self.exchange._get_exchange_info("MARGIN"), self.parser.spot_margin_exchange_info_parser
             )
             futures = self.parser.parse_exchange_info(
-                await self._get_exchange_info("FUTURES"), self.parser.futures_perp_exchange_info_parser
+                await self.exchange._get_exchange_info("FUTURES"), self.parser.futures_perp_exchange_info_parser
             )
             perp = self.parser.parse_exchange_info(
-                await self._get_exchange_info("SWAP"), self.parser.futures_perp_exchange_info_parser
+                await self.exchange._get_exchange_info("SWAP"), self.parser.futures_perp_exchange_info_parser
             )
             exchange_info = {**self.parser.combine_spot_margin_exchange_info(spot, margin), **futures, **perp}
         return exchange_info
@@ -49,17 +53,17 @@ class Okx(OkxUnified):
     async def get_tickers(self, market_type: str = None) -> list:
 
         if market_type == "spot":
-            return self.parser.parse_tickers(await self._get_tickers("SPOT"), "spot", self.exchange_info)
+            return self.parser.parse_tickers(await self.exchange._get_tickers("SPOT"), "spot", self.exchange_info)
         elif market_type == "futures":
-            return self.parser.parse_tickers(await self._get_tickers("FUTURES"), "futures", self.exchange_info)
+            return self.parser.parse_tickers(await self.exchange._get_tickers("FUTURES"), "futures", self.exchange_info)
         elif market_type == "perp":
-            return self.parser.parse_tickers(await self._get_tickers("SWAP"), "perp", self.exchange_info)
+            return self.parser.parse_tickers(await self.exchange._get_tickers("SWAP"), "perp", self.exchange_info)
         else:
             results = {}
             for market_type in ["spot", "futures", "perp"]:
                 _market_type = self.market_type_map[market_type]
                 parsed_tickers = self.parser.parse_tickers(
-                    await self._get_tickers(_market_type), market_type, self.exchange_info
+                    await self.exchange._get_tickers(_market_type), market_type, self.exchange_info
                 )
                 results.update(parsed_tickers)
 
@@ -85,7 +89,7 @@ class Okx(OkxUnified):
             while True:
                 params.update({"after": query_end})
                 datas = self.parser.parse_klines(
-                    await self._get_klines(**params),
+                    await self.exchange._get_klines(**params),
                     market_type,
                 )
                 results.update(datas)
@@ -102,7 +106,7 @@ class Okx(OkxUnified):
             while True:
                 params.update({"after": query_end} if query_end else {})
                 datas = self.parser.parse_klines(
-                    await self._get_klines(**params),
+                    await self.exchange._get_klines(**params),
                     market_type,
                 )
                 results.update(datas)
@@ -118,7 +122,7 @@ class Okx(OkxUnified):
             while True:
                 params.update({"after": query_end, "limit": query_num})
                 datas = self.parser.parse_klines(
-                    await self._get_klines(**params),
+                    await self.exchange._get_klines(**params),
                     market_type,
                 )
                 results.update(datas)
@@ -133,7 +137,7 @@ class Okx(OkxUnified):
             while True:
                 params.update({"after": query_end, "limit": query_num} if query_end else {"limit": query_num})
                 datas = self.parser.parse_klines(
-                    await self._get_klines(**params),
+                    await self.exchange._get_klines(**params),
                     market_type,
                 )
                 results.update(datas)

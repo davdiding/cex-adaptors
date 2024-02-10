@@ -1,4 +1,4 @@
-from datetime import timedelta as td
+# from datetime import timedelta as td
 
 from .base import Parser
 
@@ -146,7 +146,7 @@ class OkxParser(Parser):
 
         return {
             "symbol": response["instId"],
-            "open_time": self.adjust_timestamp(int(response["ts"]), td(days=-1)),
+            "open_time": None,
             "close_time": int(response["ts"]),
             "open": float(response["open24h"]),
             "high": float(response["high24h"]),

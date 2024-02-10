@@ -28,8 +28,15 @@ class TestOkx(IsolatedAsyncioTestCase):
 
     async def test_get_tickers(self):
         okx = await Okx.create()
-        spot = await okx.get_tickers()
+        spot = await okx.get_tickers("spot")
         self.assertTrue(spot)
+
+        perp = await okx.get_tickers("perp")
+        self.assertTrue(perp)
+
+        futures = await okx.get_tickers("futures")
+        self.assertTrue(futures)
+
         await okx.close()
         return
 
@@ -83,12 +90,22 @@ class TestBybit(IsolatedAsyncioTestCase):
         bybit = Bybit()
         response = await bybit.get_exchange_info()
         self.assertTrue(response)
+        await bybit.close()
+        return
+
+    async def test_get_tickers(self):
+        bybit = Bybit()
+        spot = await bybit.get_tickers("spot")
+        self.assertTrue(spot)
+        futures = await bybit.get_tickers("futures")
+        self.assertTrue(futures)
+        perp = await bybit.get_tickers("perp")
+        self.assertTrue(perp)
+
+        await bybit.close()
         return
 
 
 if __name__ == "__main__":
 
-    clss = [TestOkx, TestBybit]
-    for cls in clss:
-        unittest.main(cls, exit=False)
-        logging.info(f"Finished {cls.name} test codes")
+    unittest.main()

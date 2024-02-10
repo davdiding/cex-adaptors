@@ -89,5 +89,14 @@ class KucoinParser(Parser):
             results[id] = result
         return results
 
+    def parse_futures_tickers(self, response: dict) -> dict:
+        pass
+
     def parse_ticker(self, response: dict) -> dict:
+        pass
+
+    def parse_klines(self, response: dict) -> dict:
+        pass
+
+    def parse_kline(self, response: dict) -> dict:
         pass

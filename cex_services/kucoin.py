@@ -39,3 +39,8 @@ class Kucoin(object):
             pass
         else:
             pass
+
+    async def get_klines(
+        self, instrument_id: str, interval: str, start: int = None, end: int = None, limit: int = None
+    ):
+        pass

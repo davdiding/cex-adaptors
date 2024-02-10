@@ -18,13 +18,15 @@ class TestBybit(IsolatedAsyncioTestCase):
     async def test_get_kines(self):
         bybit = await Bybit.create()
         spot = await bybit.get_klines("BTC/USDT:USDT", "1d", num=333)
-        self.assertEquals(len(spot), 333)
+        self.assertEqual(len(spot), 333)
 
         perp = await bybit.get_klines("BTC/USDT:USDT-PERP", "1d", num=222)
-        self.assertEquals(len(perp), 222)
+        self.assertEqual(len(perp), 222)
 
         futures = await bybit.get_klines("BTC/USD:BTC-240329", "1d", num=23)
-        self.assertEquals(len(futures), 23)
+        self.assertEqual(len(futures), 23)
+
+        await bybit.close()
         return
 
     async def test_get_klines_with_timestamp(self):
@@ -33,10 +35,11 @@ class TestBybit(IsolatedAsyncioTestCase):
 
         bybit = await Bybit.create()
         spot = await bybit.get_klines("BTC/USDT:USDT", "1d", start=start, end=end)
-        self.assertEquals(len(spot), 30)
+        self.assertEqual(len(spot), 30)
 
         perp = await bybit.get_klines("BTC/USDT:USDT-PERP", "1d", start=start, end=end)
-        self.assertEquals(len(perp), 30)
+        await bybit.close()
+        self.assertEqual(len(perp), 30)
 
         return
 
@@ -46,6 +49,7 @@ class TestGateio(IsolatedAsyncioTestCase):
         gateio = await Gateio.create()
         response = await gateio.get_exchange_info()
         self.assertTrue(response)
+        await gateio.close()
         return
 
 
@@ -54,6 +58,7 @@ class TestHtx(IsolatedAsyncioTestCase):
         htx = await Htx.create()
         response = await htx.get_exchange_info()
         self.assertTrue(response)
+        await htx.close()
         return
 
 
@@ -62,6 +67,7 @@ class TestBinance(IsolatedAsyncioTestCase):
         binance = await Binance.create()
         response = await binance.get_exchange_info()
         self.assertTrue(response)
+        await binance.close()
         return
 
     async def test_get_ticker(self):
@@ -74,18 +80,22 @@ class TestBinance(IsolatedAsyncioTestCase):
 
         futures = await binance.get_ticker("BCH/USD:BCH-240628")
         self.assertTrue(futures)
+
+        await binance.close()
         return
 
     async def test_get_klines(self):
         binance = await Binance.create()
         spot = await binance.get_klines("BTC/USDT:USDT", "1d", num=1333)
-        self.assertEquals(len(spot), 1333)
+        self.assertEqual(len(spot), 1333)
 
         perp = await binance.get_klines("BTC/USDT:USDT-PERP", "1d", num=666)
-        self.assertEquals(len(perp), 666)
+        self.assertEqual(len(perp), 666)
 
         futures = await binance.get_klines("BCH/USD:BCH-240628", "1d", num=23)
-        self.assertEquals(len(futures), 23)
+        self.assertEqual(len(futures), 23)
+
+        await binance.close()
         return
 
     async def test_get_klines_with_timestamp(self):
@@ -94,13 +104,15 @@ class TestBinance(IsolatedAsyncioTestCase):
 
         binance = await Binance.create()
         spot = await binance.get_klines("BTC/USDT:USDT", "1d", start=start, end=end)
-        self.assertEquals(len(spot), 30)
+        self.assertEqual(len(spot), 30)
 
         perp = await binance.get_klines("BTC/USDT:USDT-PERP", "1d", start=start, end=end)
-        self.assertEquals(len(perp), 30)
+        self.assertEqual(len(perp), 30)
 
         futures = await binance.get_klines("BCH/USD:BCH-240628", "1d", start=start, end=end)
-        self.assertEquals(len(futures), 30)
+        self.assertEqual(len(futures), 30)
+
+        await binance.close()
         return
 
 
@@ -109,6 +121,8 @@ class TestOkx(IsolatedAsyncioTestCase):
         okx = await Okx.create()
         response = await okx.get_exchange_info()
         self.assertTrue(response)
+
+        await okx.close()
         return
 
     async def test_get_tickers(self):
@@ -121,6 +135,8 @@ class TestOkx(IsolatedAsyncioTestCase):
 
         futures = await okx.get_tickers("futures")
         self.assertTrue(futures)
+
+        await okx.close()
         return
 
     async def test_get_ticker(self):
@@ -133,18 +149,22 @@ class TestOkx(IsolatedAsyncioTestCase):
 
         futures = await okx.get_ticker("BTC/USD:BTC-240329")
         self.assertTrue(futures)
+
+        await okx.close()
         return
 
     async def test_get_klines(self):
         okx = await Okx.create()
         spot = await okx.get_klines("BTC/USDT:USDT", "1d", num=120)
-        self.assertEquals(len(spot), 120)
+        self.assertEqual(len(spot), 120)
 
         perp = await okx.get_klines("BTC/USDT:USDT-PERP", "1d", num=77)
-        self.assertEquals(len(perp), 77)
+        self.assertEqual(len(perp), 77)
 
         futures = await okx.get_klines("BTC/USD:BTC-240329", "1d", num=23)
-        self.assertEquals(len(futures), 23)
+        self.assertEqual(len(futures), 23)
+
+        await okx.close()
         return
 
     async def test_get_klines_with_timestamp(self):
@@ -153,13 +173,15 @@ class TestOkx(IsolatedAsyncioTestCase):
 
         okx = await Okx.create()
         spot = await okx.get_klines("BTC/USDT:USDT", "1d", start=start, end=end)
-        self.assertEquals(len(spot), 30)
+        self.assertEqual(len(spot), 30)
 
         perp = await okx.get_klines("BTC/USDT:USDT-PERP", "1d", start=start, end=end)
-        self.assertEquals(len(perp), 30)
+        self.assertEqual(len(perp), 30)
 
         futures = await okx.get_klines("BTC/USD:BTC-240329", "1d", start=start, end=end)
-        self.assertEquals(len(futures), 30)
+        self.assertEqual(len(futures), 30)
+
+        await okx.close()
         return
 
 

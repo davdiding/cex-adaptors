@@ -21,4 +21,5 @@ jobs:
         run: pre-commit run --all-files
       - name: Run test codes
         run: python3 tests/test_main.py
-        working-directory: '.'
+        env:
+          PYTHONPATH: ${{ github.workspace }}

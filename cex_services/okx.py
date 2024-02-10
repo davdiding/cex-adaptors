@@ -72,7 +72,7 @@ class Okx(object):
     async def get_ticker(self, instrument_id: str):
         _instrument_id = self.exchange_info[instrument_id]["raw_data"]["instId"]
         market_type = self._market_type_map[self.exchange_info[instrument_id]["raw_data"]["instType"]]
-        return {instrument_id: self.parser.parse_ticker(await self._get_ticker(_instrument_id), market_type)}
+        return {instrument_id: self.parser.parse_ticker(await self.exchange._get_ticker(_instrument_id), market_type)}
 
     async def get_klines(self, instrument_id: str, interval: str, start: int = None, end: int = None, num: int = None):
         info = self.exchange_info[instrument_id]

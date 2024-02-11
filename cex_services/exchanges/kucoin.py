@@ -49,3 +49,6 @@ class KucoinFutures(BaseClient):
 
     async def _get_ticker(self, symbol: str):
         return await self._get(self.futures_base_endpoint + f"/api/v1/ticker?symbol={symbol}")
+
+    async def _get_contract_info(self, symbol: str):
+        return await self._get(self.futures_base_endpoint + f"/api/v1/contracts/{symbol}")

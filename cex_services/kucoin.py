@@ -1,5 +1,8 @@
+import asyncio
+
 from .exchanges.kucoin import KucoinFutures, KucoinSpot
 from .parsers.kucoin import KucoinParser
+from .utils import query_dict
 
 
 class Kucoin(object):
@@ -34,9 +37,20 @@ class Kucoin(object):
 
     async def get_tickers(self, market_type: str = None) -> dict:
         if market_type == "spot":
-            return self.parser.parse_spot_tickers(await self.spot._get_tickers())
+            return self.parser.parse_spot_tickers(await self.spot._get_tickers(), self.exchange_info)
         elif market_type == "futures":
-            pass
+            ids = list(query_dict(self.exchange_info, "is_futures == True or is_perp == True").keys())
+            num_batch = 20
+            results = {}
+            for i in range(0, len(ids), num_batch):
+                tasks = []
+                for instrument_id in ids[i : i + num_batch]:
+                    _symbol = self.exchange_info[instrument_id]["raw_data"]["symbol"]
+                    tasks.append(self.futures._get_ticker(_symbol))
+                raw_tickers = await asyncio.gather(*tasks)
+                parsed_tickers = self.parser.parse_derivative_tickers(raw_tickers, self.exchange_info)
+                results.update(parsed_tickers)
+            return results
         else:
             pass
 

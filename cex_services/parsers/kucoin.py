@@ -1,3 +1,4 @@
+from ..utils import query_dict
 from .base import Parser
 
 
@@ -76,18 +77,74 @@ class KucoinParser(Parser):
             results[id] = result
         return results
 
-    def parse_spot_tickers(self, response: dict) -> dict:
+    def get_id_map(self, infos: dict, market_type: str) -> dict:
+        if market_type == "derivative":
+            infos = query_dict(infos, f"is_futures == True or is_perp == True")
+        else:
+            infos = query_dict(infos, f"is_{market_type} == True")
+        return {v["raw_data"]["symbol"]: k for k, v in infos.items()}
+
+    def parse_spot_tickers(self, response: dict, infos: dict) -> dict:
         response = self.check_response(response)
         if response["code"] != 200:
             return response
 
-        datas = response["data"]
+        id_map = self.get_id_map(infos, "spot")
+
+        datas = response["data"]["ticker"]
         results = {}
         for data in datas:
-            id = None
-            result = self.parse_ticker(data)
+            id = id_map[data["symbol"]]
+            result = self.parse_spot_ticker(data, close_time=response["data"]["time"])
             results[id] = result
         return results
 
-    def parse_ticker(self, response: dict) -> dict:
+    def parse_derivative_tickers(self, response: dict, infos: dict) -> dict:
+        datas = response
+
+        results = {}
+        id_map = self.get_id_map(infos, "derivative")
+        for data in datas:
+            data = data["data"]
+            instrument_id = id_map[data["symbol"]]
+            result = self.parse_derivative_ticker(data, infos[instrument_id])
+            results[instrument_id] = result
+        return results
+
+    def parse_derivative_ticker(self, response: dict, infos: dict) -> dict:
+        return {
+            "symbol": infos["symbol"],
+            "open_time": None,
+            "close_time": None,
+            "open": None,
+            "high": float(response["highPrice"]),
+            "low": float(response["lowPrice"]),
+            "last_price": float(response["lastTradePrice"]),
+            "base_volume": float(response["volumeOf24h"]),
+            "quote_volume": float(response["turnoverOf24h"]),
+            "price_change": float(response["priceChg"]),
+            "price_change_percent": float(response["priceChgPct"]),
+            "raw_data": response,
+        }
+
+    def parse_spot_ticker(self, response: dict, close_time: int) -> dict:
+        return {
+            "symbol": response["symbol"],
+            "open_time": None,
+            "close_time": close_time,
+            "open": None,
+            "high": float(response["high"]),
+            "low": float(response["low"]),
+            "last_price": float(response["last"]),
+            "base_volume": float(response["vol"]),
+            "quote_volume": float(response["volValue"]),
+            "price_change": float(response["changePrice"]),
+            "price_change_percent": float(response["changeRate"]),
+            "raw_data": response,
+        }
+
+    def parse_klines(self, response: dict) -> dict:
+        pass
+
+    def parse_kline(self, response: dict) -> dict:
         pass

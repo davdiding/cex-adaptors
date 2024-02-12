@@ -94,9 +94,8 @@ class Parser:
     def query_dict(datas: dict, query: dict) -> dict:
         filtered_data = {}
         for key, value in datas.items():
-            if all(item in value.items() for item in query.items()):
+            if any(value.get(k) == v for k, v in query.items()):
                 filtered_data[key] = value
-
         return filtered_data
 
     @staticmethod

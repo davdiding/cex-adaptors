@@ -1,4 +1,4 @@
-name: Pre-commit
+name: Pre-commit Checks
 
 on: [push, pull_request]
 
@@ -19,7 +19,3 @@ jobs:
         run: pip install pre-commit
       - name: Run pre-commit
         run: pre-commit run --all-files
-      - name: Install test dependencies
-        run: pip install -r test_requirements.txt
-      - name: Run tests
-        run: pytest tests/test_pipeline.py

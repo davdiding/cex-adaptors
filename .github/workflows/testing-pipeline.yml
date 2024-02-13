@@ -14,4 +14,5 @@ jobs:
         run: pip install -r test_requirements.txt
       - name: Run tests
         run: python3 tests/test_pipeline.py
-        working-directory: .
+        env:
+          PYTHONPATH: ${{ github.workspace }}

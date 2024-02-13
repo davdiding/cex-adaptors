@@ -13,5 +13,5 @@ jobs:
       - name: Install test dependencies
         run: pip install -r test_requirements.txt
       - name: Run tests
-        run: pytest tests/test_pipeline.py
+        run: python3 tests/test_pipeline.py
         working-directory: .

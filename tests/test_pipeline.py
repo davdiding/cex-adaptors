@@ -1,7 +1,6 @@
 import tracemalloc
 import unittest
-
-# from datetime import datetime as dt
+from datetime import datetime as dt
 from unittest import IsolatedAsyncioTestCase
 
 # from cex_services.gateio import Gateio
@@ -52,8 +51,6 @@ class TestOkx(IsolatedAsyncioTestCase):
         self.assertTrue(futures)
         return
 
-
-"""
     async def test_get_klines(self):
         self.okx = await self.okx.create()
         spot = await self.okx.get_klines("BTC/USDT:USDT", "1d", num=120)
@@ -78,7 +75,8 @@ class TestOkx(IsolatedAsyncioTestCase):
 
         futures = await self.okx.get_klines("BTC/USD:BTC-240329", "1d", start=start, end=end)
         self.assertEqual(len(futures), 30)
-        return"""
+        return
+
 
 """
 class TestBinance(IsolatedAsyncioTestCase):

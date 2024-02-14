@@ -1,5 +1,9 @@
+import tracemalloc
+
 from .exchanges.okx import OkxUnified
 from .parsers.okx import OkxParser
+
+tracemalloc.start()
 
 
 class Okx(OkxUnified):

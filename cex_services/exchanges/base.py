@@ -8,7 +8,9 @@ class BaseClient(object):
         self._session = aiohttp.ClientSession()
 
     async def _request(self, method: str, url: str, **kwargs):
-        return await self._handle_response(await self._session.request(method, url, **kwargs))
+
+        async with self._session.request(method, url, **kwargs) as response:
+            return await self._handle_response(response)
 
     async def _handle_response(self, response: aiohttp.ClientResponse):
         if response.status == 200:

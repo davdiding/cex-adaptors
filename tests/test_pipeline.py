@@ -3,8 +3,6 @@ import unittest
 from datetime import datetime as dt
 from unittest import IsolatedAsyncioTestCase
 
-from cex_services.binance import Binance
-
 # from cex_services.gateio import Gateio
 # from cex_services.htx import Htx
 # from cex_services.kucoin import Kucoin

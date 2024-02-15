@@ -23,16 +23,16 @@ class KucoinSpot(BaseClient):
     async def _get_24hr_stats(self, symbol: str):
         return await self._get(self.spot_base_endpoint + f"/api/v1/market/stats?symbol={symbol}")
 
-    async def _get_klines(self, symbol: str, type: str, startAt: int = None, endAt: int = None):
+    async def _get_klines(self, symbol: str, type: str, start: int = None, end: int = None):
         params = {
             "symbol": symbol,
             "type": type,
         }
-        if startAt:
-            params["startAt"] = startAt
+        if start:
+            params["startAt"] = start
 
-        if endAt:
-            params["endAt"] = endAt
+        if end:
+            params["endAt"] = end
 
         return await self._get(self.spot_base_endpoint + "/api/v1/market/candles", params=params)
 
@@ -52,3 +52,16 @@ class KucoinFutures(BaseClient):
 
     async def _get_contract_info(self, symbol: str):
         return await self._get(self.futures_base_endpoint + f"/api/v1/contracts/{symbol}")
+
+    async def _get_klines(self, symbol: str, granularity: int, start: int = None, end: int = None):
+
+        params = {
+            "symbol": symbol,
+            "granularity": granularity,
+        }
+        if start:
+            params["from"] = start
+        if end:
+            params["to"] = end
+
+        return await self._get(self.futures_base_endpoint + "/api/v1/kline/query", params=params)

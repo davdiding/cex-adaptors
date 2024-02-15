@@ -3,6 +3,36 @@ from .base import Parser
 
 
 class KucoinParser(Parser):
+    SPOT_INTERVAL_MAP = {
+        "1m": "1min",
+        "3m": "3min",
+        "5m": "5min",
+        "15m": "15min",
+        "30m": "30min",
+        "1h": "1hour",
+        "2h": "2hour",
+        "4h": "4hour",
+        "6h": "6hour",
+        "8h": "8hour",
+        "12h": "12hour",
+        "1d": "1day",
+        "1w": "1week",
+    }
+
+    DERIVATIVE_INTERVAL_MAP = {
+        "1m": 1,
+        "5m": 5,
+        "15m": 15,
+        "30m": 30,
+        "1h": 60,
+        "2h": 120,
+        "4h": 240,
+        "8h": 480,
+        "12h": 720,
+        "1d": 1440,
+        "1w": 10080,
+    }
+
     @staticmethod
     def check_response(response: dict):
         if response.get("code") == "200000":
@@ -143,8 +173,38 @@ class KucoinParser(Parser):
             "raw_data": response,
         }
 
-    def parse_klines(self, response: dict) -> dict:
-        pass
+    def parse_klines(self, response: dict, info: dict, market_type: str) -> dict:
+        response = self.check_response(response)
+        if response["code"] != 200:
+            return response
 
-    def parse_kline(self, response: dict) -> dict:
-        pass
+        results = {}
+        datas = response["data"]
+        for data in datas:
+            timestamp = int(int(data[0]) * 1000)
+            results[timestamp] = self.parse_kline(data, info, market_type)
+        return results
+
+    def parse_kline(self, response: dict, info: dict, market_type: str) -> dict:
+        return {
+            "open": float(response[1]),
+            "high": float(response[3]),
+            "low": float(response[4]),
+            "close": float(response[2]),
+            "base_volume": float(response[5]),
+            "quote_volume": float(response[6]),
+            "close_time": None,
+            "raw_data": response,
+        }
+
+    def get_interval(self, interval: str, market: str) -> str:
+        if market == "spot":
+            if interval not in self.SPOT_INTERVAL_MAP:
+                raise ValueError(f"Invalid interval: {interval}. Must be one of {list(self.SPOT_INTERVAL_MAP.keys())}")
+            return self.SPOT_INTERVAL_MAP[interval]
+        else:
+            if interval not in self.DERIVATIVE_INTERVAL_MAP:
+                raise ValueError(
+                    f"Invalid interval: {interval}. Must be one of {list(self.DERIVATIVE_INTERVAL_MAP.keys())}"
+                )
+            return self.DERIVATIVE_INTERVAL_MAP[interval]

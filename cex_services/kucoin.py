@@ -83,10 +83,26 @@ class Kucoin(object):
         results = {}
         query_end = None
         if start and end:
-            pass
+            query_end = int(end / 1000) if market_type == "spot" else end
+            while True:
+                params.update({"end": query_end})
+                klines = self.parser.parse_klines(await method_map[market_type](**params), info, market_type)
 
-        elif end and num:
-            pass
+                results.update(klines)
+                if len(klines) < limit_map[market_type]:
+                    break
+
+                query_end = sorted(list(results.keys()))[0]
+                if query_end < start:
+                    break
+
+                query_end = (
+                    int(sorted(list(results.keys()))[0] / 1000)
+                    if market_type == "spot"
+                    else sorted(list(results.keys()))[0]
+                )
+                continue
+            return {k: v for k, v in results.items() if start <= k <= end}
 
         elif num:
             while True:

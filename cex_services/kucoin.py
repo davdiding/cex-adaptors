@@ -71,7 +71,7 @@ class Kucoin(object):
             "derivative": self.futures._get_klines,
         }
         limit_map = {
-            "spot": 1500,
+            "spot": 100,
             "derivative": 200,
         }
 
@@ -97,7 +97,11 @@ class Kucoin(object):
                 if len(results) >= num or len(klines) < limit_map[market_type]:
                     break
 
-                query_end = sorted(list(results.keys()))[0]
+                query_end = (
+                    int(sorted(list(results.keys()))[0] / 1000)
+                    if market_type == "spot"
+                    else sorted(list(results.keys()))[0]
+                )
                 continue
             return sort_dict(results, True, num)
 

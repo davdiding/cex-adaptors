@@ -181,21 +181,33 @@ class KucoinParser(Parser):
         results = {}
         datas = response["data"]
         for data in datas:
-            timestamp = int(int(data[0]) * 1000)
+            timestamp = int(int(data[0]) * 1000) if len(str(data[0])) == 10 else int(data[0])
             results[timestamp] = self.parse_kline(data, info, market_type)
         return results
 
     def parse_kline(self, response: dict, info: dict, market_type: str) -> dict:
-        return {
-            "open": float(response[1]),
-            "high": float(response[3]),
-            "low": float(response[4]),
-            "close": float(response[2]),
-            "base_volume": float(response[5]),
-            "quote_volume": float(response[6]),
-            "close_time": None,
-            "raw_data": response,
-        }
+        if market_type == "spot":
+            return {
+                "open": float(response[1]),
+                "high": float(response[3]),
+                "low": float(response[4]),
+                "close": float(response[2]),
+                "base_volume": float(response[5]),
+                "quote_volume": float(response[6]),
+                "close_time": None,
+                "raw_data": response,
+            }
+        else:
+            return {
+                "open": float(response[1]),
+                "high": float(response[2]),
+                "low": float(response[3]),
+                "close": float(response[4]),
+                "base_volume": float(response[5]),
+                "quote_volume": None,
+                "close_time": None,
+                "raw_data": response,
+            }
 
     def get_interval(self, interval: str, market: str) -> str:
         if market == "spot":

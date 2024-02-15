@@ -5,7 +5,7 @@ from unittest import IsolatedAsyncioTestCase
 
 # from cex_services.gateio import Gateio
 # from cex_services.htx import Htx
-# from cex_services.kucoin import Kucoin
+from cex_services.kucoin import Kucoin
 from cex_services.okx import Okx
 
 tracemalloc.start()
@@ -72,6 +72,30 @@ class TestOkx(IsolatedAsyncioTestCase):
 
         futures = await self.okx.get_klines("BTC/USD:BTC-240329", "1d", start=start, end=end)
         self.assertEqual(len(futures), 30)
+        return
+
+
+class TestKucoin(IsolatedAsyncioTestCase):
+    async def asyncSetUp(self) -> None:
+        self.exchange = await Kucoin.create()
+
+    async def asyncTearDown(self) -> None:
+        await self.exchange.close()
+
+    async def test_get_exchange_info(self):
+        response = await self.exchange.get_exchange_info()
+        self.assertTrue(response)
+        return
+
+    async def test_get_klines(self):
+        spot = await self.exchange.get_klines("BTC/USDT:USDT", "1d", num=120)
+        self.assertEqual(len(spot), 120)
+
+        futures = await self.exchange.get_klines("BTC/USD:USD-240329", "1d", num=23)
+        self.assertEqual(len(futures), 23)
+
+        perp = await self.exchange.get_klines("BTC/USDT:USDT-PERP", "1d", num=300)
+        self.assertEqual(len(perp), 300)
         return
 
 

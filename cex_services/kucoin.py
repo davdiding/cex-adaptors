@@ -2,7 +2,7 @@ import asyncio
 
 from .exchanges.kucoin import KucoinFutures, KucoinSpot
 from .parsers.kucoin import KucoinParser
-from .utils import query_dict
+from .utils import query_dict, sort_dict
 
 
 class Kucoin(object):
@@ -61,7 +61,61 @@ class Kucoin(object):
             derivative_tickers = await _get_derivative_tickers()
             return {**spot_tickers, **derivative_tickers}
 
-    async def get_klines(
-        self, instrument_id: str, interval: str, start: int = None, end: int = None, limit: int = None
-    ):
-        pass
+    async def get_klines(self, instrument_id: str, interval: str, start: int = None, end: int = None, num: int = None):
+        info = self.exchange_info[instrument_id]
+        market_type = "spot" if info["is_spot"] else "derivative"
+        _symbol = info["raw_data"]["symbol"]
+        _interval = self.parser.get_interval(interval, market_type)
+        method_map = {
+            "spot": self.spot._get_klines,
+            "derivative": self.futures._get_klines,
+        }
+        limit_map = {
+            "spot": 100,
+            "derivative": 200,
+        }
+
+        params = {
+            "symbol": _symbol,
+            "granularity" if market_type == "derivative" else "type": _interval,
+        }
+
+        results = {}
+        query_end = None
+        if start and end:
+            query_end = self.parser.parse_kucoin_timestamp(end, market_type)
+            while True:
+                params.update({"end": query_end})
+                klines = self.parser.parse_klines(await method_map[market_type](**params), info, market_type)
+
+                results.update(klines)
+                if len(klines) < limit_map[market_type]:
+                    break
+
+                query_end = sorted(list(results.keys()))[0]
+                if query_end < start:
+                    break
+
+                query_end = self.parser.parse_kucoin_timestamp(sorted(list(results.keys()))[0], market_type)
+                continue
+            return {k: v for k, v in results.items() if start <= k <= end}
+
+        elif num:
+            while True:
+                params.update({"end": query_end} if query_end else {})
+                klines = self.parser.parse_klines(await method_map[market_type](**params), info, market_type)
+
+                results.update(klines)
+                if len(results) >= num or len(klines) < limit_map[market_type]:
+                    break
+
+                query_end = (
+                    int(sorted(list(results.keys()))[0] / 1000)
+                    if market_type == "spot"
+                    else sorted(list(results.keys()))[0]
+                )
+                continue
+            return sort_dict(results, True, num)
+
+        else:
+            raise ValueError("Invalid parameters. (start, end) or (end, num) or (num) must be provided.")

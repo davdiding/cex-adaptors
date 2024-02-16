@@ -220,3 +220,21 @@ class KucoinParser(Parser):
                     f"Invalid interval: {interval}. Must be one of {list(self.DERIVATIVE_INTERVAL_MAP.keys())}"
                 )
             return self.DERIVATIVE_INTERVAL_MAP[interval]
+
+    def parse_kucoin_timestamp(self, timestamp: int, market_type: str) -> int:
+        timestamp_str = str(timestamp)
+
+        if market_type == "spot":
+            if len(timestamp_str) == 13:
+                return int(timestamp_str[:-3])
+            elif len(timestamp_str) == 10:
+                return timestamp
+            else:
+                raise ValueError(f"Invalid timestamp: {timestamp}. Must be in seconds or milliseconds.")
+        else:
+            if len(timestamp_str) == 10:
+                return int(timestamp_str + "000")
+            elif len(timestamp_str) == 13:
+                return timestamp
+            else:
+                raise ValueError(f"Invalid timestamp: {timestamp}. Must be in seconds or milliseconds.")

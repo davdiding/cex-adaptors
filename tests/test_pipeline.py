@@ -98,6 +98,20 @@ class TestKucoin(IsolatedAsyncioTestCase):
         self.assertEqual(len(perp), 300)
         return
 
+    async def test_get_klines_with_timestamp(self):
+        start = int(dt.timestamp(dt(2024, 1, 1)) * 1000)
+        end = int(dt.timestamp(dt(2024, 1, 31)) * 1000)
+
+        spot = await self.exchange.get_klines("BTC/USDT:USDT", "1d", start=start, end=end)
+        self.assertEqual(len(spot), 30)
+
+        futures = await self.exchange.get_klines("BTC/USD:USD-240329", "1d", start=start, end=end)
+        self.assertEqual(len(futures), 31)
+
+        perp = await self.exchange.get_klines("BTC/USDT:USDT-PERP", "1d", start=start, end=end)
+        self.assertEqual(len(perp), 31)
+        return
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -16,3 +16,17 @@ class GateioClient(BaseClient):
 
     async def _get_futures_info(self, settle: str = "usdt"):
         return await self._get(self.base_url + f"/delivery/{settle}/contracts")
+
+    async def _get_spot_tickers(self, currency_pair: str = None, timezone: str = None):
+        params = {}
+        if currency_pair:
+            params["currency_pair"] = currency_pair
+        if timezone:
+            params["timezone"] = timezone
+        return await self._get(self.base_url + "/spot/tickers", params=params)
+
+    async def _get_perp_tickers(self, settle: str):
+        return await self._get(self.base_url + f"/futures/{settle}/tickers")
+
+    async def _get_futures_tickers(self, settle: str = "usdt"):
+        return await self._get(self.base_url + f"/delivery/{settle}/tickers")

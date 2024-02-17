@@ -116,3 +116,83 @@ class GateioParser(Parser):
             id = self.parse_unified_id(result)
             results[id] = result
         return results
+
+    def get_id_map(self, exchange_info: dict, market_type: str) -> dict:
+        raw_id = {
+            "spot": "id",
+            "futures": "name",
+            "perp": "name",
+        }
+        infos = self.query_dict(exchange_info, {f"is_{market_type}": True})
+        return {v["raw_data"][raw_id[market_type]]: k for k, v in infos.items()}
+
+    def parse_tickers(self, response: dict, exchange_info: dict, market_type: str) -> dict:
+        response = self.check_response(response)
+        datas = response["data"]
+
+        id_map = self.get_id_map(exchange_info, market_type)
+        method_map = {
+            "spot": self.parse_spot_ticker,
+            "futures": self.parse_futures_ticker,
+            "perp": self.parse_perp_ticker,
+        }
+
+        key_map = {
+            "spot": "currency_pair",
+            "futures": "contract",
+            "perp": "contract",
+        }
+
+        results = {}
+        for data in datas:
+            instrument_id = id_map[data[key_map[market_type]]]
+            results[instrument_id] = method_map[market_type](data, exchange_info[instrument_id])
+        return results
+
+    def parse_spot_ticker(self, response: dict, info: dict) -> dict:
+        return {
+            "symbol": response["currency_pair"],
+            "open_time": None,  # Not yet implemented
+            "close_time": None,  # Not yet implemented
+            "open": None,  # Not yet implemented
+            "high": float(response["high_24h"]),
+            "low": float(response["low_24h"]),
+            "last_price": float(response["last"]),
+            "base_volume": float(response["base_volume"]),
+            "quote_volume": float(response["quote_volume"]),
+            "price_change": float(response["change_utc8"]),
+            "price_change_percent": float(response["change_percentage"]) / 100,
+            "raw_data": response,
+        }
+
+    def parse_futures_ticker(self, response: dict, info: dict) -> dict:
+        return {
+            "symbol": response["contract"],
+            "open_time": None,  # Not yet implemented
+            "close_time": None,  # Not yet implemented
+            "open": None,  # Not yet implemented
+            "high": float(response["high_24h"]),
+            "low": float(response["low_24h"]),
+            "last_price": float(response["last"]),
+            "base_volume": float(response["volume_24h_base"]),
+            "quote_volume": float(response["volume_24h_quote"]),
+            "price_change": None,  # Not yet implemented
+            "price_change_percent": float(response["change_percentage"]) / 100,
+            "raw_data": response,
+        }
+
+    def parse_perp_ticker(self, response: dict, info: dict) -> dict:
+        return {
+            "symbol": response["contract"],
+            "open_time": None,  # Not yet implemented
+            "close_time": None,  # Not yet implemented
+            "open": None,  # Not yet implemented
+            "high": float(response["high_24h"]),
+            "low": float(response["low_24h"]),
+            "last_price": float(response["last"]),
+            "base_volume": float(response["volume_24h_base"]),
+            "quote_volume": float(response["volume_24h_quote"]),
+            "price_change": None,  # Not yet implemented
+            "price_change_percent": float(response["change_percentage"]) / 100,
+            "raw_data": response,
+        }

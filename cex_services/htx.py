@@ -36,3 +36,13 @@ class Htx(object):
         )
 
         return {**spot, **linear, **inverse_futures, **inverse_perp}
+
+    async def get_tickers(self, market_type: str = None):
+        # get_all tickers then filter by market_type
+
+        spot = self.parser.parse_tickers(await self.spot._get_tickers())
+
+        if market_type:
+            pass
+        else:
+            return {**spot}

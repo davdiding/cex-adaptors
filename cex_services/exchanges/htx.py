@@ -8,8 +8,11 @@ class HtxUnified(BaseClient):
         super().__init__()
         self.base_endpoint = self.BASE_URL
 
-    def _get_exchange_info(self):
-        return self._get(self.base_endpoint + "/v2/settings/common/symbols")
+    async def _get_exchange_info(self):
+        return await self._get(self.base_endpoint + "/v2/settings/common/symbols")
+
+    async def _get_tickers(self):
+        return await self._get(self.base_endpoint + "/market/detail")
 
 
 class HtxFutures(BaseClient):
@@ -19,11 +22,11 @@ class HtxFutures(BaseClient):
         super().__init__()
         self.base_endpoint = self.BASE_URL
 
-    def _get_linear_contract_info(self):
-        return self._get(self.base_endpoint + "/linear-swap-api/v1/swap_contract_info")
+    async def _get_linear_contract_info(self):
+        return await self._get(self.base_endpoint + "/linear-swap-api/v1/swap_contract_info")
 
-    def _get_inverse_futures_info(self):
-        return self._get(self.base_endpoint + "/api/v1/contract_contract_info")
+    async def _get_inverse_futures_info(self):
+        return await self._get(self.base_endpoint + "/api/v1/contract_contract_info")
 
-    def _get_inverse_perp_info(self):
-        return self._get(self.base_endpoint + "/swap-api/v1/swap_contract_info")
+    async def _get_inverse_perp_info(self):
+        return await self._get(self.base_endpoint + "/swap-api/v1/swap_contract_info")

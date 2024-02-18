@@ -140,3 +140,18 @@ class HtxParser(Parser):
             id = self.parse_unified_id(result)
             results[id] = result
         return results
+
+    def parse_tickers(self, response: dict) -> dict:
+        response = self.check_response(response)
+        if response["code"] != 200:
+            return response
+
+        results = {}
+        datas = response["data"]
+        for data in datas:
+            instrument_id = None
+            results[instrument_id] = self.parse_spot_ticker(data)
+        return results
+
+    def parse_spot_ticker(self, response: dict):
+        return {}

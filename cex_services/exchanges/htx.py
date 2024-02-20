@@ -12,7 +12,7 @@ class HtxUnified(BaseClient):
         return await self._get(self.base_endpoint + "/v2/settings/common/symbols")
 
     async def _get_tickers(self):
-        return await self._get(self.base_endpoint + "/market/detail")
+        return await self._get(self.base_endpoint + "/market/tickers")
 
 
 class HtxFutures(BaseClient):
@@ -30,3 +30,12 @@ class HtxFutures(BaseClient):
 
     async def _get_inverse_perp_info(self):
         return await self._get(self.base_endpoint + "/swap-api/v1/swap_contract_info")
+
+    async def _get_linear_contract_tickers(self):
+        return await self._get(self.base_endpoint + "/v2/linear-swap-ex/market/detail/batch_merged")
+
+    async def _get_inverse_perp_tickers(self):
+        return await self._get(self.base_endpoint + "/v2/swap-ex/market/detail/batch_merged")
+
+    async def _get_inverse_futures_tickers(self):
+        return await self._get(self.base_endpoint + "/v2/market/detail/batch_merged")

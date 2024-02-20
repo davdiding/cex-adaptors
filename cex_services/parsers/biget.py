@@ -2,6 +2,8 @@ from .base import Parser
 
 
 class BitgetParser(Parser):
+    LINEAR_FUTURES_SETTLE = ["USDT", "USDC"]
+
     def __init__(self):
         super().__init__()
 
@@ -33,6 +35,31 @@ class BitgetParser(Parser):
             "tick_size": None,  # Not yet implemented
             "min_order_size": (lambda x: float(x["minTradeAmount"])),
             "max_order_size": (lambda x: float(x["maxTradeAmount"])),
+            "raw_data": (lambda x: x),
+        }
+
+    @property
+    def derivative_exchange_info_parser(self):
+        return {
+            "active": (lambda x: x["symbolStatus"] == "normal"),
+            "is_spot": False,
+            "is_margin": False,
+            "is_futures": (lambda x: self.parse_is_futures(x["symbolType"])),
+            "is_perp": (lambda x: self.parse_is_perpetual(x["symbolType"])),
+            "is_linear": (lambda x: False if x["quoteCoin"] in self.FIAT_CURRENCY else True),
+            "is_inverse": (lambda x: True if x["quoteCoin"] in self.FIAT_CURRENCY else False),
+            "symbol": (lambda x: self.parse_unified_symbol(x["baseCoin"], x["quoteCoin"])),
+            "base": (lambda x: self.parse_base_currency(x["baseCoin"])),
+            "quote": (lambda x: str(x["quoteCoin"])),
+            "settle": (lambda x: str(x["quoteCoin"])),
+            "multiplier": (lambda x: self.parse_multiplier(x["baseCoin"])),
+            "leverage": (lambda x: int(x["maxLever"])),
+            "listing_time": (lambda x: int(x["launchTime"]) if x["launchTime"] else None),
+            "expiration_time": (lambda x: int(x["deliveryTime"]) if x["deliveryTime"] else None),
+            "contract_size": (lambda x: float(x["sizeMultiplier"])),
+            "tick_size": None,  # not yet implemented
+            "min_order_size": None,  # API not support this field
+            "max_order_size": None,  # API not support this field
             "raw_data": (lambda x: x),
         }
 

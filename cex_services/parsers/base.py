@@ -7,11 +7,20 @@ class Parser:
     MULTIPLIER = ["1000000", "100000", "10000", "1000", "100", "10"]
     SPOT_TYPES = ["SPOT"]
     MARGIN_TYPES = ["MARGIN", "both", "utaOnly", "normalOnly"]
-    FUTURES_TYPES = ["FUTURES", "LinearFutures", "InverseFutures", "NEXT_QUARTER", "CURRENT_QUARTER", "futures"]
-    PERPETUAL_TYPES = ["SWAP", "LinearPerpetual", "InversePerpetual", "PERPETUAL", "swap"]
+    FUTURES_TYPES = [
+        "FUTURES",
+        "LinearFutures",
+        "InverseFutures",
+        "NEXT_QUARTER",
+        "CURRENT_QUARTER",
+        "futures",
+        "delivery",
+    ]
+    PERPETUAL_TYPES = ["SWAP", "LinearPerpetual", "InversePerpetual", "PERPETUAL", "swap", "perpetual"]
     LINEAR_TYPES = ["LinearFutures", "LinearPerpetual", "linear"]
     INVERSE_TYPES = ["InverseFutures", "InversePerpetual", "inverse"]
     STABLE_CURRENCY = ["USDT", "USDC"]
+    FIAT_CURRENCY = ["USD"]
 
     def get_result_with_parser(self, data: dict, parser: dict) -> dict:
         results = {}

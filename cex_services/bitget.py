@@ -22,7 +22,19 @@ class Bitget(object):
             await self.bitget._get_spot_exchange_info(), self.parser.spot_exchange_info_parser
         )
 
-        results = {**spot}
+        inverse = self.parser.parse_exchange_info(
+            await self.bitget._get_derivative_exchange_info("COIN-FUTURES"), self.parser.derivative_exchange_info_parser
+        )
+
+        linear_futures = {}
+        for settle in self.parser.LINEAR_FUTURES_SETTLE:
+            sub_linear = self.parser.parse_exchange_info(
+                await self.bitget._get_derivative_exchange_info(f"{settle}-FUTURES"),
+                self.parser.derivative_exchange_info_parser,
+            )
+            linear_futures.update(sub_linear)
+
+        results = {**spot, **inverse, **linear_futures}
         if market_type:
             pass
         else:

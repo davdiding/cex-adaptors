@@ -74,5 +74,4 @@ class BitgetParser(Parser):
             result = self.get_result_with_parser(data, parser)
             instrument_id = self.parse_unified_id(result)
             results[instrument_id] = result
-
         return results

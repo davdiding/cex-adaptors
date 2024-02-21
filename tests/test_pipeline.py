@@ -3,6 +3,7 @@ import unittest
 from datetime import datetime as dt
 from unittest import IsolatedAsyncioTestCase
 
+from cex_services.bitget import Bitget
 from cex_services.gateio import Gateio
 from cex_services.htx import Htx
 from cex_services.kucoin import Kucoin
@@ -164,6 +165,19 @@ class TestHtx(IsolatedAsyncioTestCase):
 
         tickers = await self.exchange.get_tickers()
         self.assertTrue(tickers)
+        return
+
+
+class TestBitget(IsolatedAsyncioTestCase):
+    async def asyncSetUp(self):
+        self.exchange = await Bitget.create()
+
+    async def asyncTearDown(self):
+        await self.exchange.close()
+
+    async def test_get_exchange_info(self):
+        response = await self.exchange.get_exchange_info()
+        self.assertTrue(response)
         return
 
 

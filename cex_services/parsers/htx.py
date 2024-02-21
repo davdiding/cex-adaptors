@@ -1,16 +1,21 @@
+from ..utils import query_dict
 from .base import Parser
 
 
 class HtxParser(Parser):
+
+    response_keys = ["data", "ticks"]
+
     def __init__(self):
         super().__init__()
 
-    @staticmethod
-    def check_response(response: dict):
+    def check_htx_response(self, response: dict):
         if response["status"] != "ok":
             return {"code": 400, "status": "error", "data": response}
         else:
-            return {"code": 200, "status": "success", "data": response["data"]}
+            for _key in self.response_keys:
+                if _key in response:
+                    return {"code": 200, "status": "success", "data": response[_key]}
 
     @property
     def spot_exchange_info_parser(self) -> dict:
@@ -129,7 +134,7 @@ class HtxParser(Parser):
             }
 
     def parse_exchange_info(self, response: dict, parser: dict):
-        response = self.check_response(response)
+        response = self.check_htx_response(response)
         if response["code"] != 200:
             return response
 
@@ -140,3 +145,124 @@ class HtxParser(Parser):
             id = self.parse_unified_id(result)
             results[id] = result
         return results
+
+    def get_htx_id_map(self, exchange_info: dict, market_type: str) -> dict:
+        keys_map = {
+            "spot": "sc",
+            "linear": "contract_code",
+            "inverse_perp": "contract_code",
+            "inverse_futures": "symbol",
+        }
+        if market_type == "linear":
+            infos = query_dict(exchange_info, "(is_perp == True or is_futures == True) and is_linear == True")
+        elif market_type == "inverse_perp":
+            infos = query_dict(exchange_info, "is_perp == True and is_inverse == True")
+        elif market_type == "inverse_futures":
+            infos = query_dict(exchange_info, "is_futures == True and is_inverse == True")
+            return {self.parse_inverse_futures_symbol(v["raw_data"]): k for k, v in infos.items()}
+        else:
+            infos = self.query_dict(exchange_info, {f"is_{market_type}": True})
+        return {v["raw_data"][keys_map[market_type]]: k for k, v in infos.items()}
+
+    def parse_inverse_futures_symbol(self, datas: dict) -> str:
+        contract_type_map = {
+            "this_week": "CW",
+            "next_week": "NW",
+            "quarter": "CQ",
+        }
+        return f"{datas['symbol']}_{contract_type_map[datas['contract_type']]}"
+
+    def parse_tickers(self, response: dict, exchange_infos: dict, market_type: str) -> dict:
+        response = self.check_htx_response(response)
+        if response["code"] != 200:
+            return response
+
+        method_map = {
+            "spot": self.parse_spot_ticker,
+            "linear": self.parse_linear_ticker,
+            "inverse_perp": self.parse_inverse_perp_ticker,
+            "inverse_futures": self.parse_inverse_futures_ticker,
+        }
+
+        keys_map = {
+            "spot": "symbol",
+            "linear": "contract_code",
+            "inverse_perp": "contract_code",
+            "inverse_futures": "symbol",
+        }
+
+        id_map = self.get_htx_id_map(exchange_infos, market_type)
+
+        results = {}
+        datas = response["data"]
+        for data in datas:
+            if data[keys_map[market_type]] not in id_map:
+                print(f"Unmapped symbol: {data[keys_map[market_type]]} in {market_type}")
+                continue
+            instrument_id = id_map[data[keys_map[market_type]]]
+            results[instrument_id] = method_map[market_type](data, exchange_infos[instrument_id])
+        return results
+
+    def parse_spot_ticker(self, response: dict, info: dict):
+        return {
+            "symbol": response["symbol"],
+            "open_time": None,
+            "close_time": None,
+            "open": float(response["open"]),
+            "high": float(response["high"]),
+            "low": float(response["low"]),
+            "last_price": float(response["close"]),
+            "base_volume": float(response["amount"]),
+            "quote_volume": float(response["vol"]),
+            "price_change": float(response["close"]) - float(response["open"]),
+            "price_change_percent": None,
+            "raw_data": response,
+        }
+
+    def parse_linear_ticker(self, response: dict, info: dict):
+        return {
+            "symbol": response["contract_code"],
+            "open_time": None,
+            "close_time": int(response["ts"]),
+            "open": float(response["open"]),
+            "high": float(response["high"]),
+            "low": float(response["low"]),
+            "last_price": float(response["close"]),
+            "base_volume": float(response["amount"]) * info["contract_size"],
+            "quote_volume": float(response["vol"]),
+            "price_change": float(response["close"]) - float(response["open"]),
+            "price_change_percent": None,
+            "raw_data": response,
+        }
+
+    def parse_inverse_perp_ticker(self, response: dict, info: dict):
+        return {
+            "symbol": response["contract_code"],
+            "open_time": None,
+            "close_time": int(response["ts"]),
+            "open": float(response["open"]),
+            "high": float(response["high"]),
+            "low": float(response["low"]),
+            "last_price": float(response["close"]),
+            "base_volume": float(response["amount"]),
+            "quote_volume": float(response["vol"]),
+            "price_change": float(response["close"]) - float(response["open"]),
+            "price_change_percent": None,
+            "raw_data": response,
+        }
+
+    def parse_inverse_futures_ticker(self, response: dict, info: dict):
+        return {
+            "symbol": response["symbol"],
+            "open_time": None,
+            "close_time": int(response["ts"]),
+            "open": float(response["open"]),
+            "high": float(response["high"]),
+            "low": float(response["low"]),
+            "last_price": float(response["close"]),
+            "base_volume": float(response["amount"]),
+            "quote_volume": float(response["vol"]),
+            "price_change": float(response["close"]) - float(response["open"]),
+            "price_change_percent": None,
+            "raw_data": response,
+        }

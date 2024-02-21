@@ -4,8 +4,7 @@ from datetime import datetime as dt
 from unittest import IsolatedAsyncioTestCase
 
 from cex_services.gateio import Gateio
-
-# from cex_services.htx import Htx
+from cex_services.htx import Htx
 from cex_services.kucoin import Kucoin
 from cex_services.okx import Okx
 
@@ -135,6 +134,33 @@ class TestGateio(IsolatedAsyncioTestCase):
 
         perp = await self.exchange.get_tickers("perp")
         self.assertTrue(perp)
+
+        tickers = await self.exchange.get_tickers()
+        self.assertTrue(tickers)
+        return
+
+
+class TestHtx(IsolatedAsyncioTestCase):
+    async def asyncSetUp(self):
+        self.exchange = await Htx.create()
+
+    async def asyncTearDown(self):
+        await self.exchange.close()
+
+    async def test_get_exchange_info(self):
+        response = await self.exchange.get_exchange_info()
+        self.assertTrue(response)
+        return
+
+    async def test_get_tickers(self):
+        spot = await self.exchange.get_tickers("spot")
+        self.assertTrue(spot)
+
+        perp = await self.exchange.get_tickers("perp")
+        self.assertTrue(perp)
+
+        futures = await self.exchange.get_tickers("futures")
+        self.assertTrue(futures)
 
         tickers = await self.exchange.get_tickers()
         self.assertTrue(tickers)

@@ -8,6 +8,7 @@ from cex_services.gateio import Gateio
 from cex_services.htx import Htx
 from cex_services.kucoin import Kucoin
 from cex_services.okx import Okx
+from cex_services.utils import query_dict
 
 tracemalloc.start()
 
@@ -192,6 +193,33 @@ class TestBitget(IsolatedAsyncioTestCase):
 
         tickers = await self.exchange.get_tickers()
         self.assertTrue(tickers)
+        return
+
+    async def test_get_klines_with_num(self):
+        spot = await self.exchange.get_klines("BTC/USDT:USDT", "1d", num=333)
+        self.assertEquals(len(spot), 333)
+
+        instrument_id = list(query_dict(self.exchange.exchange_info, "is_futures == True").keys())[0]
+        futures = await self.exchange.get_klines(instrument_id, "1m", num=333)
+        self.assertEquals(len(futures), 333)
+
+        perp = await self.exchange.get_klines("BTC/USDT:USDT-PERP", "5m", num=333)
+        self.assertEquals(len(perp), 333)
+        return
+
+    async def test_get_klines_with_timestamp(self):
+        start = int(dt.timestamp(dt(2024, 1, 1)) * 1000)
+        end = int(dt.timestamp(dt(2024, 1, 31)) * 1000)
+
+        spot = await self.exchange.get_klines("BTC/USDT:USDT", "1d", start=start, end=end)
+        self.assertEquals(len(spot), 31)
+
+        perp = await self.exchange.get_klines("BTC/USDT:USDT-PERP", "1d", start=start, end=end)
+        self.assertEquals(len(perp), 31)
+
+        instruments = list(query_dict(self.exchange.exchange_info, "is_futures == True").keys())[0]
+        futures = await self.exchange.get_klines(instruments, "1d", start=start, end=end)
+        self.assertEquals(len(futures), 31)
         return
 
 

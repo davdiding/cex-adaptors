@@ -5,6 +5,37 @@ from .base import Parser
 class BitgetParser(Parser):
     LINEAR_FUTURES_SETTLE = ["USDT", "USDC"]
 
+    INTERVAL_MAP = {
+        "spot": {
+            "1m": "1min",
+            "5m": "5min",
+            "15m": "15min",
+            "30m": "30min",
+            "1h": "1h",
+            "4h": "4h",
+            "6h": "6h",
+            "12h": "12h",
+            "1d": "1day",
+            "3d": "3day",
+            "1w": "1week",
+            "1M": "1M",
+        },
+        "derivative": {
+            "1m": "1m",
+            "3m": "3m",
+            "5m": "5m",
+            "15m": "15m",
+            "30m": "30m",
+            "1h": "1H",
+            "4h": "4H",
+            "6h": "6H",
+            "12h": "12H",
+            "1d": "1D",
+            "1w": "1W",
+            "1M": "1M",
+        },
+    }
+
     def __init__(self):
         super().__init__()
 
@@ -135,3 +166,48 @@ class BitgetParser(Parser):
             instrument_id = id_map[data["symbol"]]
             results[instrument_id] = method_map[market_type](data, exchange_info[instrument_id])
         return results
+
+    @staticmethod
+    def get_market_type(response: dict) -> str:
+        if response["is_spot"]:
+            return "spot"
+        elif response["is_futures"] or response["is_perp"]:
+            return "derivative"
+        else:
+            raise ValueError("Unknown market type")
+
+    @staticmethod
+    def get_product_type(response: dict) -> str:
+        if response["is_linear"]:
+            return f"{response['settle']}-FUTURES"
+        else:
+            return "COIN-FUTURES"
+
+    def get_interval(self, interval: str, market_type: str) -> str:
+        if interval not in self.INTERVAL_MAP[market_type]:
+            raise ValueError(f"Invalid interval {interval}")
+        return self.INTERVAL_MAP[market_type][interval]
+
+    def parse_klines(self, response: dict, market_type: str) -> dict:
+        response = self.check_response(response)
+        if response["code"] != 200:
+            return response
+
+        datas = response["data"]
+        results = {}
+        for data in datas:
+            timestamp = int(data[0])
+            results[timestamp] = self.parse_kline(data, market_type)
+        return results
+
+    def parse_kline(self, response: list, market_type: str) -> dict:
+        return {
+            "open": float(response[1]),
+            "high": float(response[2]),
+            "low": float(response[3]),
+            "close": float(response[4]),
+            "base_volume": float(response[5]),
+            "quote_volume": float(response[6]),
+            "close_time": None,
+            "raw_data": response,
+        }

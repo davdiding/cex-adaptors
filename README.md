@@ -33,8 +33,41 @@ if __name__ == "__main__":
 | HTX      | 1.0.1   | Yes        | No          |
 
 ## Supported API endpoints
-| Endpoint            | Exchanges                            |
-|---------------------|--------------------------------------|
-| `get_exchange_info` | Binance, OKX, Bybit, Gate.io, Kucoin, HTX |
-| `get_tickers`       | Binance, OKX                         |
-| `get_klines`        | Binance, OKX                         |
+| Endpoint            | Exchanges                                         |
+|---------------------|---------------------------------------------------|
+| `get_exchange_info` | Binance, OKX, Bybit, Gate.io, Kucoin, HTX, Bitget |
+| `get_tickers`       | Binance, OKX, Bybit, Gate.io, Kucoin, HTX, Bitget |
+| `get_klines`        | Binance, OKX                                      |
+
+
+## Unified function parameters and output format
+### 1. `get_exchange_info`
+#### Input
+| Parameter     | Required | Default | Description                                  |
+|---------------|----------|---------|----------------------------------------------|
+| `market_type` | No       | `None`  | should be value in `spot`, `perp`, `futures` |
+
+#### Output (nested dict)
+| Field             | Type    | Description                                                                                                                           |
+|-------------------|---------|---------------------------------------------------------------------------------------------------------------------------------------|
+| `instrument_id`   | `str`   | Key of the `dict`. Format will be `{base}/{quote}:{settle}-{delivery}`                                                                |
+| `active`          | `bool`  | Whether this instrument can be traded now                                                                                             |
+| `is_spot`         | `bool`  | Whether this instrument is in spot market                                                                                             |
+| `is_margin`       | `bool`  | Whether this instrument can trading in margin mode                                                                                    |
+| `is_futures`      | `bool`  | Whether this instrument is in futures market                                                                                          |
+| `is_perp`         | `bool`  | Whether this instrument is in perp market                                                                                             |
+| `is_linear`       | `bool`  | Return `True` when this instrument is settled in stable currency                                                                      |
+| `is_inverse`      | `bool`  | Return `True` when this instrument is settled in coin                                                                                 |
+| `symbol`          | `str`   | The unified symbol of the trading pair. Format will be `{base}/{quote}`                                                               |
+| `base`            | `str`   | The base currency                                                                                                                     |
+| `quote`           | `str`   | The quote currency                                                                                                                    |
+| `settle`          | `str`   | The settlement currency                                                                                                               |
+| `multiplier`      | `int`   | The multiplier. Normaly refer to how many base currency this instrument will include                                                  |
+| `leverage`        | `float` | Maximum leverage can be traded.                                                                                                       |
+| `listing_time`    | `int`   | Listing time in 13 digits.                                                                                                            |
+| `expiration_time` | `int`   | Expiration time in 13 digits.                                                                                                         |
+| `contract_size`   | `float` | Contract size. Default is `1`. Refer to how many base currency each contract will include, normaly only apply to `perp` and `futures` |
+| `tick_size`       | `float` | The minimum price movement.                                                                                                           |
+| `min_order_size`  | `float` | The minimum order size.                                                                                                               |
+| `max_order_size`  | `float` | The maximum order size.                                                                                                               |
+| `raw_data`        | `dict`  | The unprocessed raw data.                                                                                                             |

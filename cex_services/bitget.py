@@ -120,7 +120,22 @@ class Bitget(object):
         results = {}
         query_end = None
         if start and end:
-            pass
+            query_end = end
+            while True:
+                params.update({"endTime": query_end})
+
+                result = self.parser.parse_klines(await method_map[market_type](**params), market_type)
+                results.update(result)
+
+                if not result or len(result) < limit:
+                    break
+
+                query_end = sorted(list(result.keys()))[0]
+
+                if query_end < start:
+                    break
+
+            return {k: v for k, v in results.items() if start <= k <= end}
         elif num:
             while True:
                 params.update({"endTime": query_end})

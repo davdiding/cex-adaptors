@@ -180,6 +180,20 @@ class TestBitget(IsolatedAsyncioTestCase):
         self.assertTrue(response)
         return
 
+    async def test_get_tickers(self):
+        spot = await self.exchange.get_tickers("spot")
+        self.assertTrue(spot)
+
+        perp = await self.exchange.get_tickers("perp")
+        self.assertTrue(perp)
+
+        futures = await self.exchange.get_tickers("futures")
+        self.assertTrue(futures)
+
+        tickers = await self.exchange.get_tickers()
+        self.assertTrue(tickers)
+        return
+
 
 if __name__ == "__main__":
     unittest.main()

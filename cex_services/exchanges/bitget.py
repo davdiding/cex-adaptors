@@ -14,3 +14,10 @@ class BitgetUnified(BaseClient):
     def _get_derivative_exchange_info(self, product_type: str):
         params = {"productType": product_type}
         return self._get(self.base_endpoint + "/api/v2/mix/market/contracts", params=params)
+
+    def _get_spot_tickers(self):
+        return self._get(self.base_endpoint + "/api/v2/spot/market/tickers")
+
+    def _get_derivative_tickers(self, product_type: str):
+        params = {"productType": product_type}
+        return self._get(self.base_endpoint + "/api/v2/mix/market/tickers", params=params)

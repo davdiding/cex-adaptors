@@ -38,7 +38,6 @@ if __name__ == "__main__":
 | `get_exchange_info` | Binance, OKX, Bybit, Gate.io, Kucoin, HTX, Bitget |
 | `get_tickers`       | Binance, OKX, Bybit, Gate.io, Kucoin, HTX, Bitget |
 | `get_klines`        | Binance, OKX                                      |
-                                    |
 
 
 ## Unified function parameters and output format

@@ -71,3 +71,12 @@ class Htx(object):
                 await self.futures._get_inverse_futures_tickers(), self.exchange_info, "inverse_futures"
             )
             return {**spot, **linear, **inverse_perp, **inverse_futures}
+
+    async def get_klines(self, instrument_id: str, interval: str, start: int = None, end: int = None, num: int = None):
+        if instrument_id not in self.exchange_info:
+            return {"code": 400, "msg": "instrument_id not found"}
+
+        # info = self.exchange_info[instrument_id]
+        # market_type = self.parser.get_market_type(info)
+        #
+        # method_map = {}

@@ -266,3 +266,15 @@ class HtxParser(Parser):
             "price_change_percent": None,
             "raw_data": response,
         }
+
+    def get_market_type(self, info: dict) -> str:
+        if info["is_spot"]:
+            return "spot"
+        elif info["is_linear"] and (info["is_futures"] or info["is_perp"]):
+            return "linear"
+        elif info["is_inverse"] and info["is_futures"]:
+            return "inverse_futures"
+        elif info["is_inverse"] and info["is_perp"]:
+            return "inverse_perp"
+        else:
+            raise ValueError("Unknown market type")

@@ -1,6 +1,6 @@
 from .exchanges.htx import HtxFutures, HtxUnified
 from .parsers.htx import HtxParser
-from .utils import query_dict
+from .utils import query_dict, sort_dict
 
 
 class Htx(object):
@@ -74,9 +74,57 @@ class Htx(object):
 
     async def get_klines(self, instrument_id: str, interval: str, start: int = None, end: int = None, num: int = None):
         if instrument_id not in self.exchange_info:
-            return {"code": 400, "msg": "instrument_id not found"}
+            raise ValueError(f"{instrument_id} not in exchange_info")
 
-        # info = self.exchange_info[instrument_id]
-        # market_type = self.parser.get_market_type(info)
-        #
-        # method_map = {}
+        info = self.exchange_info[instrument_id]
+        market_type = self.parser.get_market_type(info)
+        _interval = self.parser.get_interval(interval, market_type)
+
+        symbol_map = {
+            "spot": "sc",
+            "linear": "contract_code",
+            "inverse_futures": "symbol",
+            "inverse_perp": "contract_code",
+        }
+
+        method_map = {
+            "spot": self.spot._get_klines,
+            "linear": self.futures._get_linear_contract_klines,
+            "inverse_futures": self.futures._get_inverse_futures_klines,
+            "inverse_perp": self.futures._get_inverse_perp_klines,
+        }
+
+        limit_map = {
+            "spot": 2000,
+            "linear": 2000,
+            "inverse_futures": 2000,
+            "inverse_perp": 2000,
+        }
+
+        params = {
+            "symbol": info["raw_data"][symbol_map[market_type]],
+            "period": _interval,
+            "limit": limit_map[market_type],
+        }
+        results = {}
+        query_end = None
+        if start and end and market_type != "spot":
+            query_end = end
+            while True:
+                params["end"] = query_end
+
+        elif num:
+            while True:
+                params.update({"from": query_end} if query_end else {})
+                result = self.parser.parse_klines(await method_map[market_type](**params), market_type, info)
+                results.update(result)
+
+                if len(result) < limit_map[market_type]:
+                    break
+
+                query_end = sorted(list(result.keys()))[0]
+                if len(results) >= num:
+                    break
+            return sort_dict(results, ascending=True, num=num)
+        else:
+            raise ValueError("(start, end) or num must be provided")

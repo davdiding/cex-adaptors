@@ -39,7 +39,16 @@ class HtxParser(Parser):
             "1d": "1day",
             "1M": "1mon",
         },
-        "inverse_futures": {},
+        "inverse_futures": {
+            "1m": "1min",
+            "5m": "5min",
+            "15m": "15min",
+            "30m": "30min",
+            "1h": "60min",
+            "4h": "4hour",
+            "1d": "1day",
+            "1M": "1mon",
+        },
     }
 
     def __init__(self):
@@ -347,10 +356,28 @@ class HtxParser(Parser):
         }
 
     def parse_inverse_perp_kline(self, response: dict, info: dict) -> dict:
-        return {}
+        return {
+            "open": float(response["open"]),
+            "high": float(response["high"]),
+            "low": float(response["low"]),
+            "close": float(response["close"]),
+            "base_volume": float(response["amount"]),
+            "quote_volume": float(response["vol"]) * info["contract_size"],
+            "close_time": None,
+            "raw_data": response,
+        }
 
     def parse_inverse_futures_kline(self, response: dict, info: dict) -> dict:
-        return {}
+        return {
+            "open": float(response["open"]),
+            "high": float(response["high"]),
+            "low": float(response["low"]),
+            "close": float(response["close"]),
+            "base_volume": float(response["amount"]),
+            "quote_volume": float(response["vol"]) * info["contract_size"],
+            "close_time": None,
+            "raw_data": response,
+        }
 
     def get_interval(self, interval: str, market_type: str) -> str:
         if interval not in self.INTERVAL_MAP[market_type]:

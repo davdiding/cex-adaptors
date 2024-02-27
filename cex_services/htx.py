@@ -102,7 +102,9 @@ class Htx(object):
         }
 
         params = {
-            "symbol": info["raw_data"][symbol_map[market_type]],
+            "symbol": info["raw_data"][symbol_map[market_type]]
+            if market_type != "inverse_futures"
+            else self.parser.parse_inverse_futures_symbol(info["raw_data"]),
             "period": _interval,
             "limit": limit_map[market_type],
         }
@@ -119,10 +121,11 @@ class Htx(object):
                 result = self.parser.parse_klines(await method_map[market_type](**params), market_type, info)
                 results.update(result)
 
-                if len(result) < limit_map[market_type]:
+                temp_end = str(sorted(list(result.keys()))[0])[:10]
+                if len(result) < limit_map[market_type] or temp_end == query_end:
                     break
 
-                query_end = str(sorted(list(result.keys()))[0])[:10]  # get the earliest timestamp in 10 digits
+                query_end = temp_end  # get the earliest timestamp in 10 digits
                 if len(results) >= num:
                     break
             return sort_dict(results, ascending=True, num=num)

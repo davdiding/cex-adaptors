@@ -14,6 +14,11 @@ class HtxUnified(BaseClient):
     async def _get_tickers(self):
         return await self._get(self.base_endpoint + "/market/tickers")
 
+    async def _get_klines(self, symbol: str, period: str, limit: int):
+        params = {"symbol": symbol, "period": period, "size": limit}
+
+        return await self._get(self.base_endpoint + "/market/history/kline", params=params)
+
 
 class HtxFutures(BaseClient):
     BASE_URL = "https://api.hbdm.com"
@@ -39,3 +44,42 @@ class HtxFutures(BaseClient):
 
     async def _get_inverse_futures_tickers(self):
         return await self._get(self.base_endpoint + "/v2/market/detail/batch_merged")
+
+    async def _get_linear_contract_klines(
+        self, symbol: str, period: str, start: int = None, end: int = None, limit: int = None
+    ):
+        params = {"contract_code": symbol, "period": period}
+        if start:
+            params["from"] = start
+        if end:
+            params["to"] = end
+        if limit:
+            params["size"] = limit
+
+        return await self._get(self.base_endpoint + "/linear-swap-ex/market/history/kline", params=params)
+
+    async def _get_inverse_perp_klines(
+        self, symbol: str, period: str, start: int = None, end: int = None, limit: int = None
+    ):
+        params = {"contract_code": symbol, "period": period}
+        if start:
+            params["from"] = start
+        if end:
+            params["to"] = end
+        if limit:
+            params["size"] = limit
+
+        return await self._get(self.base_endpoint + "/swap-ex/market/history/kline", params=params)
+
+    async def _get_inverse_futures_klines(
+        self, symbol: str, period: str, start: int = None, end: int = None, limit: int = None
+    ):
+        params = {"symbol": symbol, "period": period}
+        if start:
+            params["from"] = start
+        if end:
+            params["to"] = end
+        if limit:
+            params["size"] = limit
+
+        return await self._get(self.base_endpoint + "/market/history/kline", params=params)

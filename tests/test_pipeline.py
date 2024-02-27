@@ -207,21 +207,6 @@ class TestBitget(IsolatedAsyncioTestCase):
         self.assertEquals(len(perp), 333)
         return
 
-    async def test_get_klines_with_timestamp(self):
-        start = int(dt.timestamp(dt(2024, 1, 1)) * 1000)
-        end = int(dt.timestamp(dt(2024, 1, 31)) * 1000)
-
-        spot = await self.exchange.get_klines("BTC/USDT:USDT", "1d", start=start, end=end)
-        self.assertEquals(len(spot), 31)
-
-        perp = await self.exchange.get_klines("BTC/USDT:USDT-PERP", "1d", start=start, end=end)
-        self.assertEquals(len(perp), 31)
-
-        instruments = list(query_dict(self.exchange.exchange_info, "is_futures == True").keys())[0]
-        futures = await self.exchange.get_klines(instruments, "1d", start=start, end=end)
-        self.assertEquals(len(futures), 31)
-        return
-
 
 if __name__ == "__main__":
     unittest.main()

@@ -6,6 +6,51 @@ class HtxParser(Parser):
 
     response_keys = ["data", "ticks"]
 
+    INTERVAL_MAP = {
+        "spot": {
+            "1m": "1min",
+            "5m": "5min",
+            "15m": "15min",
+            "30m": "30min",
+            "1h": "60min",
+            "4h": "4hour",
+            "1d": "1day",
+            "1M": "1mon",
+            "1w": "1week",
+            "1y": "1year",
+        },
+        "linear": {
+            "1m": "1min",
+            "5m": "5min",
+            "15m": "15min",
+            "30m": "30min",
+            "1h": "60min",
+            "4h": "4hour",
+            "1d": "1day",
+            "1M": "1mon",
+        },
+        "inverse_perp": {
+            "1m": "1min",
+            "5m": "5min",
+            "15m": "15min",
+            "30m": "30min",
+            "1h": "60min",
+            "4h": "4hour",
+            "1d": "1day",
+            "1M": "1mon",
+        },
+        "inverse_futures": {
+            "1m": "1min",
+            "5m": "5min",
+            "15m": "15min",
+            "30m": "30min",
+            "1h": "60min",
+            "4h": "4hour",
+            "1d": "1day",
+            "1M": "1mon",
+        },
+    }
+
     def __init__(self):
         super().__init__()
 
@@ -266,3 +311,77 @@ class HtxParser(Parser):
             "price_change_percent": None,
             "raw_data": response,
         }
+
+    def get_market_type(self, info: dict) -> str:
+        if info["is_spot"]:
+            return "spot"
+        elif info["is_linear"] and (info["is_futures"] or info["is_perp"]):
+            return "linear"
+        elif info["is_inverse"] and info["is_futures"]:
+            return "inverse_futures"
+        elif info["is_inverse"] and info["is_perp"]:
+            return "inverse_perp"
+        else:
+            raise ValueError("Unknown market type")
+
+    def parse_klines(self, response: dict, market_type: str, info: dict) -> dict:
+        response = self.check_htx_response(response)
+        if response["code"] != 200:
+            return response
+
+        method_map = {
+            "spot": self.parse_spot_and_linear_kline,
+            "linear": self.parse_spot_and_linear_kline,
+            "inverse_perp": self.parse_inverse_perp_kline,
+            "inverse_futures": self.parse_inverse_futures_kline,
+        }
+
+        results = {}
+        datas = response["data"]
+        for data in datas:
+            timestamp = int(int(data["id"]) * 1000)
+            results[timestamp] = method_map[market_type](data, info=info)
+        return results
+
+    def parse_spot_and_linear_kline(self, response: dict, info: dict) -> dict:
+        return {
+            "open": float(response["open"]),
+            "high": float(response["high"]),
+            "low": float(response["low"]),
+            "close": float(response["close"]),
+            "base_volume": float(response["amount"]),
+            "quote_volume": float(response["vol"]),
+            "close_time": None,
+            "raw_data": response,
+        }
+
+    def parse_inverse_perp_kline(self, response: dict, info: dict) -> dict:
+        return {
+            "open": float(response["open"]),
+            "high": float(response["high"]),
+            "low": float(response["low"]),
+            "close": float(response["close"]),
+            "base_volume": float(response["amount"]),
+            "quote_volume": float(response["vol"]) * info["contract_size"],
+            "close_time": None,
+            "raw_data": response,
+        }
+
+    def parse_inverse_futures_kline(self, response: dict, info: dict) -> dict:
+        return {
+            "open": float(response["open"]),
+            "high": float(response["high"]),
+            "low": float(response["low"]),
+            "close": float(response["close"]),
+            "base_volume": float(response["amount"]),
+            "quote_volume": float(response["vol"]) * info["contract_size"],
+            "close_time": None,
+            "raw_data": response,
+        }
+
+    def get_interval(self, interval: str, market_type: str) -> str:
+        if interval not in self.INTERVAL_MAP[market_type]:
+            raise ValueError(
+                f"Invalid interval: {interval} in {market_type}, must be one of {list(self.INTERVAL_MAP[market_type])}"
+            )
+        return self.INTERVAL_MAP[market_type][interval]

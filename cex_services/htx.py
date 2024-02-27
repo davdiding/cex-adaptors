@@ -115,14 +115,14 @@ class Htx(object):
 
         elif num:
             while True:
-                params.update({"from": query_end} if query_end else {})
+                params.update({"end": query_end} if query_end else {})
                 result = self.parser.parse_klines(await method_map[market_type](**params), market_type, info)
                 results.update(result)
 
                 if len(result) < limit_map[market_type]:
                     break
 
-                query_end = sorted(list(result.keys()))[0]
+                query_end = str(sorted(list(result.keys()))[0])[:10]  # get the earliest timestamp in 10 digits
                 if len(results) >= num:
                     break
             return sort_dict(results, ascending=True, num=num)

@@ -19,8 +19,26 @@ class HtxParser(Parser):
             "1w": "1week",
             "1y": "1year",
         },
-        "linear": {},
-        "inverse_perp": {},
+        "linear": {
+            "1m": "1min",
+            "5m": "5min",
+            "15m": "15min",
+            "30m": "30min",
+            "1h": "60min",
+            "4h": "4hour",
+            "1d": "1day",
+            "1M": "1mon",
+        },
+        "inverse_perp": {
+            "1m": "1min",
+            "5m": "5min",
+            "15m": "15min",
+            "30m": "30min",
+            "1h": "60min",
+            "4h": "4hour",
+            "1d": "1day",
+            "1M": "1mon",
+        },
         "inverse_futures": {},
     }
 
@@ -303,8 +321,8 @@ class HtxParser(Parser):
             return response
 
         method_map = {
-            "spot": self.parse_spot_kline,
-            "linear": self.parse_linear_kline,
+            "spot": self.parse_spot_and_linear_kline,
+            "linear": self.parse_spot_and_linear_kline,
             "inverse_perp": self.parse_inverse_perp_kline,
             "inverse_futures": self.parse_inverse_futures_kline,
         }
@@ -313,10 +331,10 @@ class HtxParser(Parser):
         datas = response["data"]
         for data in datas:
             timestamp = int(int(data["id"]) * 1000)
-            results[timestamp] = method_map[market_type](data)
+            results[timestamp] = method_map[market_type](data, info=info)
         return results
 
-    def parse_spot_kline(self, response: dict) -> dict:
+    def parse_spot_and_linear_kline(self, response: dict, info: dict) -> dict:
         return {
             "open": float(response["open"]),
             "high": float(response["high"]),
@@ -328,13 +346,10 @@ class HtxParser(Parser):
             "raw_data": response,
         }
 
-    def parse_linear_kline(self, response: dict) -> dict:
+    def parse_inverse_perp_kline(self, response: dict, info: dict) -> dict:
         return {}
 
-    def parse_inverse_perp_kline(self, response: dict) -> dict:
-        return {}
-
-    def parse_inverse_futures_kline(self, response: dict) -> dict:
+    def parse_inverse_futures_kline(self, response: dict, info: dict) -> dict:
         return {}
 
     def get_interval(self, interval: str, market_type: str) -> str:

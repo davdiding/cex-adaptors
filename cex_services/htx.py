@@ -113,7 +113,18 @@ class Htx(object):
         if start and end and market_type != "spot":
             query_end = end
             while True:
-                params["end"] = query_end
+                params["end"] = str(query_end)[:10]
+                result = self.parser.parse_klines(await method_map[market_type](**params), market_type, info)
+                results.update(result)
+
+                temp_end = str(sorted(list(result.keys()))[0])[:10]
+                if len(result) < limit_map[market_type] or temp_end == query_end:
+                    break
+
+                query_end = temp_end  # get the earliest timestamp in 10 digits
+                if query_end <= start:
+                    break
+            return {k: v for k, v in results.items() if start <= int(k) <= end}
 
         elif num:
             while True:
@@ -129,5 +140,6 @@ class Htx(object):
                 if len(results) >= num:
                     break
             return sort_dict(results, ascending=True, num=num)
+
         else:
             raise ValueError("(start, end) or num must be provided")

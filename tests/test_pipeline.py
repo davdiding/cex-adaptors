@@ -141,6 +141,35 @@ class TestGateio(IsolatedAsyncioTestCase):
         self.assertTrue(tickers)
         return
 
+    async def test_get_klines_with_num(self):
+        spot = await self.exchange.get_klines("BTC/USDT:USDT", "1d", num=120)
+        self.assertEqual(len(spot), 120)
+
+        perp = await self.exchange.get_klines("BTC/USDT:USDT-PERP", "5m", num=1200)
+        self.assertEqual(len(perp), 1200)
+
+        instrument_id = list(query_dict(self.exchange.exchange_info, "is_futures == True").keys())[0]
+        futures = await self.exchange.get_klines(instrument_id, "5m", num=1333)
+        self.assertEqual(len(futures), 1333)
+
+        return
+
+    async def test_get_klines_with_timestamp(self):
+        start = int(dt.timestamp(dt(2024, 2, 1)) * 1000)
+        end = int(dt.timestamp(dt(2024, 2, 10)) * 1000)
+
+        spot = await self.exchange.get_klines("BTC/USDT:USDT", "1d", start=start, end=end)
+        self.assertEqual(len(spot), 9)
+
+        perp = await self.exchange.get_klines("BTC/USDT:USDT-PERP", "1d", start=start, end=end)
+        self.assertEqual(len(perp), 9)
+
+        instrument_id = list(query_dict(self.exchange.exchange_info, "is_futures == True").keys())[0]
+        futures = await self.exchange.get_klines(instrument_id, "1d", start=start, end=end)
+        self.assertEqual(len(futures), 9)
+
+        return
+
 
 class TestHtx(IsolatedAsyncioTestCase):
     async def asyncSetUp(self):

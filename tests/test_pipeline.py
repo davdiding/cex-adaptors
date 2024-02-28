@@ -154,6 +154,22 @@ class TestGateio(IsolatedAsyncioTestCase):
 
         return
 
+    async def test_get_klines_with_timestamp(self):
+        start = int(dt.timestamp(dt(2024, 2, 1)) * 1000)
+        end = int(dt.timestamp(dt(2024, 2, 10)) * 1000)
+
+        spot = await self.exchange.get_klines("BTC/USDT:USDT", "1d", start=start, end=end)
+        self.assertEqual(len(spot), 9)
+
+        perp = await self.exchange.get_klines("BTC/USDT:USDT-PERP", "1d", start=start, end=end)
+        self.assertEqual(len(perp), 9)
+
+        instrument_id = list(query_dict(self.exchange.exchange_info, "is_futures == True").keys())[0]
+        futures = await self.exchange.get_klines(instrument_id, "1d", start=start, end=end)
+        self.assertEqual(len(futures), 9)
+
+        return
+
 
 class TestHtx(IsolatedAsyncioTestCase):
     async def asyncSetUp(self):

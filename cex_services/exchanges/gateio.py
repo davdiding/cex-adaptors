@@ -63,7 +63,8 @@ class GateioClient(BaseClient):
             params["from"] = start
         if end:
             params["to"] = end
-        if limit:
+
+        if not start and not end and limit:
             params["limit"] = limit
 
         return await self._get(self.base_url + f"/delivery/{settle}/candlesticks", params=params)

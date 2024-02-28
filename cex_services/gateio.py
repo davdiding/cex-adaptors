@@ -109,7 +109,25 @@ class Gateio(object):
         results = {}
         query_end = None
         if start and end:
-            pass
+            query_end = str(end)[:10]
+            while True:
+                params.update({"end": query_end})
+                result = self.parser.parse_klines(await method_map[market_type](**params), market_type, info)
+                results.update(result)
+
+                if len(result) < limit_map[market_type]:
+                    break
+
+                query_end = sorted(list(result.keys()))[0]
+
+                if query_end < start:
+                    break
+
+                query_end = str(query_end)[:10]
+                continue
+
+            return {k: v for k, v in results.items() if start <= k <= end}
+
         elif num:
             while True:
                 params.update({"end": query_end} if query_end else {})

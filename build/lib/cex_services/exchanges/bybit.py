@@ -13,3 +13,21 @@ class BybitUnified(BaseClient):
 
     async def _get_tickers(self, category: str) -> dict:
         return await self._get(self.base_endpoint + "/v5/market/tickers", params={"category": category})
+
+    async def _get_klines(
+        self, symbol: str, interval: str, category: str = None, start: int = None, end: int = None, limit: int = None
+    ):
+        params = {
+            k: v
+            for k, v in {
+                "category": category,
+                "symbol": symbol,
+                "interval": interval,
+                "start": start,
+                "end": end,
+                "limit": limit,
+            }.items()
+            if v is not None
+        }
+
+        return await self._get(self.base_endpoint + "/v5/market/kline", params=params)

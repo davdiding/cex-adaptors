@@ -30,3 +30,40 @@ class GateioClient(BaseClient):
 
     async def _get_futures_tickers(self, settle: str = "usdt"):
         return await self._get(self.base_url + f"/delivery/{settle}/tickers")
+
+    async def _get_spot_klines(self, symbol: str, interval: str, start: int = None, end: int = None, limit: int = None):
+        params = {"currency_pair": symbol, "interval": interval}
+        if start:
+            params["from"] = start
+        if end:
+            params["to"] = end
+        if limit:
+            params["limit"] = limit
+
+        return await self._get(self.base_url + "/spot/candlesticks", params=params)
+
+    async def _get_perp_klines(
+        self, symbol: str, settle: str, interval: str, start: int = None, end: int = None, limit: int = None
+    ):
+        params = {"contract": symbol, "interval": interval}
+        if start:
+            params["from"] = start
+        if end:
+            params["to"] = end
+        if limit:
+            params["limit"] = limit
+
+        return await self._get(self.base_url + f"/futures/{settle}/candlesticks", params=params)
+
+    async def _get_futures_klines(
+        self, symbol: str, settle: str, interval: str, start: int = None, end: int = None, limit: int = None
+    ):
+        params = {"contract": symbol, "interval": interval}
+        if start:
+            params["from"] = start
+        if end:
+            params["to"] = end
+        if limit:
+            params["limit"] = limit
+
+        return await self._get(self.base_url + f"/delivery/{settle}/candlesticks", params=params)

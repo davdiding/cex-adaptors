@@ -153,4 +153,7 @@ class Okx(OkxUnified):
         return results
 
     async def get_balance(self):
-        return await self._get_balance()
+        return self.parser.parse_balance(await self._get_balance())
+
+    async def get_positions(self):
+        return self.parser.parse_positions(await self._get_positions(), self.exchange_info)

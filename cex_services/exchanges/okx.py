@@ -79,3 +79,9 @@ class OkxUnified(BaseClient):
         return await self._get(
             self.BASE_ENDPOINT + request_path, params=params, headers=self.get_private_header("get", request_path, "")
         )
+
+    async def _get_positions(self):
+        request_path = "/api/v5/account/positions"
+        return await self._get(
+            self.BASE_ENDPOINT + "/api/v5/account/positions", headers=self.get_private_header("get", request_path, "")
+        )

@@ -11,15 +11,15 @@ class Okx(OkxUnified):
     market_type_map = {"spot": "SPOT", "margin": "MARGIN", "futures": "FUTURES", "perp": "SWAP"}
     _market_type_map = {"SPOT": "spot", "MARGIN": "margin", "FUTURES": "futures", "SWAP": "perp"}
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, api_key: str = "-1", api_secret: str = "-1", passphrase: str = "-1", flag: str = "1"):
+        super().__init__(api_key=api_key, api_secret=api_secret, passphrase=passphrase, flag=flag)
 
         self.parser = OkxParser()
         self.exchange_info = {}
 
     @classmethod
-    async def create(cls):
-        instance = cls()
+    async def create(cls, api_key: str, api_secret: str, passphrase: str, flag: str = "1"):
+        instance = cls(api_key=api_key, api_secret=api_secret, passphrase=passphrase, flag=flag)
         instance.exchange_info = await instance.get_exchange_info()
         return instance
 
@@ -151,3 +151,6 @@ class Okx(OkxUnified):
             raise Exception("invalid params")
 
         return results
+
+    async def get_balance(self):
+        return await self._get_balance()

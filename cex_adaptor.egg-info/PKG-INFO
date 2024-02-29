@@ -1,8 +1,13 @@
+Metadata-Version: 2.1
+Name: cex-adaptor
+Version: 1.0.0
+Description-Content-Type: text/markdown
+
 # cex_services
 This package is designed for interacting with many crypto centralized exchanges. Currently only support **public API endpoints** in Version `1.0.x`. Will add private API endpoints in version `2.0.x`.
 
 ## Getting started
-use ```pip install cex-adaptor``` to install the package.
+use ```pip install cex-services``` to install the package.
 
 ## Usage
 After installing the package, you can use the following code start the service.

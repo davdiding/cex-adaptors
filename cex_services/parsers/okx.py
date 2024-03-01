@@ -221,5 +221,17 @@ class OkxParser(Parser):
             results[instrument_id] = {"position": float(data["pos"]), "raw_data": data}
         return results
 
+    def parse_account_config(self, response: dict) -> dict:
+        response = self.check_response(response)
+        data = response["data"][0]
+
+        return {
+            "account_id": data["uid"],
+            "main_account_id": data["mainUid"],
+            "key_name": data["label"],
+            "permission": data["perm"].split(","),
+            "raw_data": data,
+        }
+
     def get_interval(self, interval: str) -> str:
         return self.interval_map[interval]

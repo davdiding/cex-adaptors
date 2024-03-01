@@ -157,3 +157,6 @@ class Okx(OkxUnified):
 
     async def get_positions(self):
         return self.parser.parse_positions(await self._get_positions(), self.exchange_info)
+
+    async def get_account_config(self):
+        return self.parser.parse_account_config(await self._get_account_config())

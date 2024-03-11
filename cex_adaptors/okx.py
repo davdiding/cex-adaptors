@@ -11,7 +11,7 @@ class Okx(OkxUnified):
     market_type_map = {"spot": "SPOT", "margin": "MARGIN", "futures": "FUTURES", "perp": "SWAP"}
     _market_type_map = {"SPOT": "spot", "MARGIN": "margin", "FUTURES": "futures", "SWAP": "perp"}
 
-    def __init__(self, api_key: str = "-1", api_secret: str = "-1", passphrase: str = "-1", flag: str = "1"):
+    def __init__(self, api_key: str = None, api_secret: str = None, passphrase: str = None, flag: str = "1"):
         super().__init__(api_key=api_key, api_secret=api_secret, passphrase=passphrase, flag=flag)
 
         self.parser = OkxParser()
@@ -153,4 +153,10 @@ class Okx(OkxUnified):
         return results
 
     async def get_balance(self):
-        return await self._get_balance()
+        return self.parser.parse_balance(await self._get_balance())
+
+    async def get_positions(self):
+        return self.parser.parse_positions(await self._get_positions(), self.exchange_info)
+
+    async def get_account_config(self):
+        return self.parser.parse_account_config(await self._get_account_config())

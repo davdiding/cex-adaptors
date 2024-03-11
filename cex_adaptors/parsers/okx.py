@@ -28,7 +28,7 @@ class OkxParser(Parser):
         if response.get("code") == "0":
             return {"code": 200, "status": "success", "data": response["data"]}
         else:
-            return {"code": 400, "status": "error", "data": response}
+            raise Exception(f"Error {response['code']} {response['msg']}")
 
     def _parse_leverage(self, lever: any):
         return int(lever) if lever else 1
@@ -98,8 +98,6 @@ class OkxParser(Parser):
 
     def parse_exchange_info(self, response: dict, parser: dict) -> dict:
         response = self.check_response(response)
-        if response["code"] != 200:
-            return response
 
         datas = response["data"]
         results = {}
@@ -159,14 +157,13 @@ class OkxParser(Parser):
             "raw_data": response,
         }
 
-    def get_id_map(self, infos: dict, market_type: str) -> dict:
-        infos = self.query_dict(infos, {f"is_{market_type}": True})
+    def get_id_map(self, infos: dict, market_type: str = None) -> dict:
+        if market_type:
+            infos = self.query_dict(infos, {f"is_{market_type}": True})
         return {v["raw_data"]["instId"]: k for k, v in infos.items()}
 
     def parse_tickers(self, response: dict, market_type: str, infos: dict) -> dict:
         response = self.check_response(response)
-        if response["code"] != 200:
-            return response
         datas = response["data"]
 
         id_map = self.get_id_map(infos, market_type)
@@ -190,8 +187,6 @@ class OkxParser(Parser):
 
     def parse_klines(self, response: dict, market_type: str) -> dict:
         response = self.check_response(response)
-        if response["code"] != 200:
-            return response
 
         datas = response["data"]
         results = {}
@@ -200,6 +195,43 @@ class OkxParser(Parser):
             timestamp = int(data[0])
             results[timestamp] = result
         return results
+
+    def parse_balance(self, response: dict) -> dict:
+        response = self.check_response(response)
+
+        datas = response["data"][0]["details"]
+        results = {}
+        for data in datas:
+            currency = data["ccy"]
+            results[currency] = {
+                "balance": float(data["cashBal"]),
+                "available_balance": float(data["availBal"]),
+                "raw_data": data,
+            }
+        return results
+
+    def parse_positions(self, response: dict, infos: dict) -> dict:
+        response = self.check_response(response)
+        id_map = self.get_id_map(infos)
+        datas = response["data"]
+
+        results = {}
+        for data in datas:
+            instrument_id = id_map[data["instId"]]
+            results[instrument_id] = {"position": float(data["pos"]), "raw_data": data}
+        return results
+
+    def parse_account_config(self, response: dict) -> dict:
+        response = self.check_response(response)
+        data = response["data"][0]
+
+        return {
+            "account_id": data["uid"],
+            "main_account_id": data["mainUid"],
+            "key_name": data["label"],
+            "permission": data["perm"].split(","),
+            "raw_data": data,
+        }
 
     def get_interval(self, interval: str) -> str:
         return self.interval_map[interval]

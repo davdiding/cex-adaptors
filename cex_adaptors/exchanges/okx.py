@@ -1,11 +1,8 @@
-import base64
-import hmac
-from datetime import datetime as dt
-
 from .base import BaseClient
 
 
 class OkxUnified(BaseClient):
+    name = "okx"
     BASE_ENDPOINT = "https://www.okx.com"
 
     def __init__(
@@ -25,31 +22,14 @@ class OkxUnified(BaseClient):
         self.debug = debug
         self.flag = flag
 
-    def get_private_header(self, method, request_path, body):
-        timestamp = self.get_timestamp()
-        message = str(timestamp) + str.upper(method) + request_path + body
-        sign = self.get_signature(message)
-
-        header = dict()
-        header["Content-Type"] = "application/json"
-        header["OK-ACCESS-KEY"] = self.api_key
-        header["OK-ACCESS-SIGN"] = sign
-        header["OK-ACCESS-TIMESTAMP"] = str(timestamp)
-        header["OK-ACCESS-PASSPHRASE"] = self.passphrase
-        header["x-simulated-trading"] = self.flag
-
-        return header
-
-    def get_signature(self, message: str):
-        mac = hmac.new(bytes(self.api_secret, encoding="utf8"), bytes(message, encoding="utf-8"), digestmod="sha256")
-        d = mac.digest()
-        return base64.b64encode(d).decode("utf-8")
-
-    @staticmethod
-    def get_timestamp():
-        now = dt.utcnow()
-        t = now.isoformat("T", "milliseconds")
-        return t + "Z"
+        self.auth_data = {
+            "api_key": self.api_key,
+            "api_secret": self.api_secret,
+            "passphrase": self.passphrase,
+            "use_server_time": self.use_server_time,
+            "debug": self.debug,
+            "flag": self.flag,
+        }
 
     async def _get_exchange_info(self, instType: str) -> dict:
         return await self._get(self.BASE_ENDPOINT + "/api/v5/public/instruments", params={"instType": instType})
@@ -74,20 +54,11 @@ class OkxUnified(BaseClient):
         params = {}
         if currency:
             params["ccy"] = currency
-        request_path = "/api/v5/account/balance"
 
-        return await self._get(
-            self.BASE_ENDPOINT + request_path, params=params, headers=self.get_private_header("get", request_path, "")
-        )
+        return await self._get(self.BASE_ENDPOINT + "/api/v5/account/balance", auth_data=self.auth_data, params=params)
 
     async def _get_positions(self):
-        request_path = "/api/v5/account/positions"
-        return await self._get(
-            self.BASE_ENDPOINT + "/api/v5/account/positions", headers=self.get_private_header("get", request_path, "")
-        )
+        return await self._get(self.BASE_ENDPOINT + "/api/v5/account/positions", auth_data=self.auth_data)
 
     async def _get_account_config(self):
-        request_path = "/api/v5/account/config"
-        return await self._get(
-            self.BASE_ENDPOINT + request_path, headers=self.get_private_header("get", request_path, "")
-        )
+        return await self._get(self.BASE_ENDPOINT + "/api/v5/account/config", auth_data=self.auth_data)

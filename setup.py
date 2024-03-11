@@ -1,7 +1,7 @@
 from setuptools import find_packages, setup
 
 setup(
-    name="cex-adaptor",
+    name="cex-adaptors",
     version="1.0.0",
     packages=find_packages(),
     long_description=open("README.md").read(),

@@ -2,12 +2,25 @@ import json
 
 import aiohttp
 
+from .auth import OkxAuth
+
 
 class BaseClient(object):
+    name = None
+
     def __init__(self) -> None:
         self._session = aiohttp.ClientSession()
 
     async def _request(self, method: str, url: str, **kwargs):
+        if "auth_data" in kwargs:
+            # Private endpoint request
+            auth_data = kwargs.pop("auth_data")
+
+            # Split into different exchange method
+            if self.name == "okx":
+                auth = OkxAuth(**auth_data)
+                headers = auth.get_private_header(method, url, auth_data.get("params", {}))
+                kwargs["headers"] = headers
 
         async with self._session.request(method, url, **kwargs) as response:
             return await self._handle_response(response)

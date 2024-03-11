@@ -11,7 +11,7 @@ class Okx(OkxUnified):
     market_type_map = {"spot": "SPOT", "margin": "MARGIN", "futures": "FUTURES", "perp": "SWAP"}
     _market_type_map = {"SPOT": "spot", "MARGIN": "margin", "FUTURES": "futures", "SWAP": "perp"}
 
-    def __init__(self, api_key: str = "-1", api_secret: str = "-1", passphrase: str = "-1", flag: str = "1"):
+    def __init__(self, api_key: str = None, api_secret: str = None, passphrase: str = None, flag: str = "1"):
         super().__init__(api_key=api_key, api_secret=api_secret, passphrase=passphrase, flag=flag)
 
         self.parser = OkxParser()

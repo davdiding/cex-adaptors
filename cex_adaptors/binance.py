@@ -11,8 +11,8 @@ tracemalloc.start()
 class Binance(object):
     name = "binance"
 
-    def __init__(self):
-        self.spot = BinanceSpot()
+    def __init__(self, api_key: str = None, api_secret: str = None):
+        self.spot = BinanceSpot(api_key=api_key, api_secret=api_secret)
         self.linear = BinanceLinear()
         self.inverse = BinanceInverse()
         self.parser = BinanceParser()
@@ -29,6 +29,9 @@ class Binance(object):
         instance = cls()
         instance.exchange_info = await instance.get_exchange_info()
         return instance
+
+    async def sync_exchange_info(self) -> None:
+        self.exchange_info = await self.get_exchange_info()
 
     async def get_exchange_info(self, market_type: Optional[Literal["spot", "margin", "futures", "perp"]] = None):
         spot = self.parser.parse_exchange_info(
@@ -120,3 +123,7 @@ class Binance(object):
                 continue
 
             return sort_dict(results, ascending=True, num=num)
+
+    # Private function
+    async def get_spot_account_info(self) -> dict:
+        return self.parser.parse_spot_account_info(await self.spot._get_account_info())

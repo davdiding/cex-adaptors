@@ -161,6 +161,10 @@ class BinanceParser(Parser):
             results.update(result)
         return results
 
+    def parse_spot_account_info(self, response: dict) -> dict:
+        response = self.check_response(response)
+        return
+
     def get_symbol(self, info: dict) -> str:
         return f'{info["base"]}{info["quote"]}'
 

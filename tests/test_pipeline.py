@@ -15,7 +15,8 @@ tracemalloc.start()
 
 class TestOkx(IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
-        self.okx = await Okx.create()
+        self.okx = Okx()
+        await self.okx.sync_exchange_info()
 
     async def asyncTearDown(self):
         await self.okx.close()
@@ -51,7 +52,6 @@ class TestOkx(IsolatedAsyncioTestCase):
         return
 
     async def test_get_klines(self):
-        self.okx = await self.okx.create()
         spot = await self.okx.get_klines("BTC/USDT:USDT", "1d", num=120)
         self.assertEqual(len(spot), 120)
 

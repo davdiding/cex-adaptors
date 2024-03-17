@@ -2,7 +2,7 @@ import json
 
 import aiohttp
 
-from .auth import OkxAuth
+from .auth import BinanceAuth, OkxAuth
 
 
 class BaseClient(object):
@@ -20,6 +20,11 @@ class BaseClient(object):
             if self.name == "okx":
                 auth = OkxAuth(**auth_data)
                 headers = auth.get_private_header(method, url, auth_data.get("params", {}))
+                kwargs["headers"] = headers
+            elif self.name == "binance":
+                auth = BinanceAuth(**auth_data)
+                headers = auth.get_private_header()
+                kwargs["params"] = auth.update_params(kwargs.get("params", {}))
                 kwargs["headers"] = headers
 
         async with self._session.request(method, url, **kwargs) as response:

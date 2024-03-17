@@ -3,10 +3,16 @@ from .base import BaseClient
 
 class BinanceSpot(BaseClient):
     BASE_ENDPOINT = "https://api{}.binance.com"
+    name = "binance"
 
-    def __init__(self, api_version: int = 3):
+    def __init__(self, api_key: str, api_secret: str, api_version: int = 3):
         super().__init__()
         self.base_endpoint = self.BASE_ENDPOINT.format(api_version)
+
+        self.auth_data = {
+            "api_key": api_key,
+            "api_secret": api_secret,
+        }
 
     async def _get_exchange_info(self):
         return await self._get(self.base_endpoint + "/api/v3/exchangeInfo")
@@ -32,6 +38,10 @@ class BinanceSpot(BaseClient):
         if endTime:
             params["endTime"] = endTime
         return await self._get(self.base_endpoint + "/api/v3/klines", params=params)
+
+    # Private endpoint
+    async def _get_account_info(self):
+        return await self._get(self.base_endpoint + "/api/v3/account", auth_data=self.auth_data)
 
 
 class BinanceLinear(BaseClient):

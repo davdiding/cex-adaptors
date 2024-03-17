@@ -1,6 +1,8 @@
 import base64
+import hashlib
 import hmac
 import json
+import time
 from datetime import datetime as dt
 
 
@@ -60,3 +62,21 @@ class OkxAuth(object):
                 url = url + str(key) + "=" + str(value) + "&"
         url = url[0:-1]
         return url
+
+
+class BinanceAuth(object):
+    def __init__(self, api_key: str, api_secret: str):
+        self.api_key = api_key
+        self.api_secret = api_secret
+
+    def get_private_header(self):
+        headers = {"X-MBX-APIKEY": self.api_key}
+        return headers
+
+    def update_params(self, params: dict):
+        params["timestamp"] = int(time.time() * 1000)
+
+        payload = "&".join([f"{k}={v}" for k, v in params.items()])
+        signature = hmac.new(self.api_secret.encode("utf-8"), payload.encode("utf-8"), hashlib.sha256).hexdigest()
+        params["signature"] = signature
+        return params

@@ -17,11 +17,8 @@ class Okx(OkxUnified):
         self.parser = OkxParser()
         self.exchange_info = {}
 
-    @classmethod
-    async def create(cls, api_key: str, api_secret: str, passphrase: str, flag: str = "1"):
-        instance = cls(api_key=api_key, api_secret=api_secret, passphrase=passphrase, flag=flag)
-        instance.exchange_info = await instance.get_exchange_info()
-        return instance
+    async def sync_exchange_info(self):
+        self.exchange_info = await self.get_exchange_info()
 
     async def get_exchange_info(self, market_type: str = None):
         if market_type:

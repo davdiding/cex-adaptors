@@ -163,7 +163,13 @@ class BinanceParser(Parser):
 
     def parse_spot_account_info(self, response: dict) -> dict:
         response = self.check_response(response)
-        return
+        data = response["data"]
+        return {
+            "timestamp": data["updateTime"],
+            "account_id": data["uid"],
+            "account_type": data["accountType"],
+            "raw_data": data,
+        }
 
     def get_symbol(self, info: dict) -> str:
         return f'{info["base"]}{info["quote"]}'

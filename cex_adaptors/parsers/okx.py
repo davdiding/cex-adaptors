@@ -257,3 +257,11 @@ class OkxParser(Parser):
             "status": data["state"],
             "raw_data": data,
         }
+
+    def parse_cancel_order(self, response: dict) -> dict:
+        response = self.check_response(response)
+        data = response["data"][0]
+        return {
+            "order_id": int(data["ordId"]),
+            "raw_data": data,
+        }

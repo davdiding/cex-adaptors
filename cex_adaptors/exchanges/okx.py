@@ -95,3 +95,10 @@ class OkxUnified(BaseClient):
             if v
         }
         return await self._post(self.BASE_ENDPOINT + "/api/v5/trade/order", auth_data=self.auth_data, params=params)
+
+    async def _cancel_order(self, instId: str, ordId: str):
+        return await self._post(
+            self.BASE_ENDPOINT + "/api/v5/trade/cancel-order",
+            auth_data=self.auth_data,
+            params={"instId": instId, "ordId": ordId},
+        )

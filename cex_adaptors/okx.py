@@ -198,3 +198,10 @@ class Okx(OkxUnified):
             )
         )
         return self.parser.parse_order_info(await self._get_order_info(_instrument_id, str(order_id)), info)
+
+    async def cancel_order(self, instrument_id: str, order_id: int):
+        if instrument_id not in self.exchange_info:
+            raise Exception(f"{instrument_id} not found in exchange_info")
+        info = self.exchange_info[instrument_id]
+        _instrument_id = info["raw_data"]["instId"]
+        return self.parser.parse_cancel_order(await self._cancel_order(_instrument_id, str(order_id)))

@@ -62,3 +62,36 @@ class OkxUnified(BaseClient):
 
     async def _get_account_config(self):
         return await self._get(self.BASE_ENDPOINT + "/api/v5/account/config", auth_data=self.auth_data)
+
+    async def _get_order_info(self, instId: str, ordId: str):
+        return await self._get(
+            self.BASE_ENDPOINT + "/api/v5/trade/order",
+            auth_data=self.auth_data,
+            params={"instId": instId, "ordId": ordId},
+        )
+
+    async def _place_order(
+        self,
+        instId: str,
+        side: str,
+        sz: str,
+        px: str = None,
+        tgtCcy: str = "base_ccy",
+        ordType: str = "market",
+        tdMode: str = "cross",
+        **kwargs
+    ):
+        params = {
+            k: v
+            for k, v in {
+                "instId": instId,
+                "tdMode": tdMode,
+                "side": side,
+                "ordType": ordType,
+                "sz": sz,
+                "px": px,
+                "tgtCcy": tgtCcy,
+            }.items()
+            if v
+        }
+        return await self._post(self.BASE_ENDPOINT + "/api/v5/trade/order", auth_data=self.auth_data, params=params)

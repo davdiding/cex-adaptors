@@ -17,11 +17,18 @@ class OkxAuth(object):
         self.debug = debug
         self.flag = flag
 
+        self.body = ""
+
     def get_private_header(self, method: str, request_path: str, params: dict):
         if method == "GET":
             request_path = (request_path + self.parse_params_to_str(params)).replace(self.BASE_ENDPOINT, "")
+        elif method == "POST":
+            request_path = request_path.replace(self.BASE_ENDPOINT, "")
+        else:
+            raise ValueError(f"Invalid method: {method}")
 
-        body = json.dumps(params) if method == "POST" else ""
+        body = json.dumps(params, separators=(",", ":")) if method == "POST" else ""
+        self.body = body
         timestamp = self.get_timestamp()
 
         sign = self.sign(self.pre_hash(timestamp, method, request_path, body))

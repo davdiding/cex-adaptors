@@ -131,7 +131,7 @@ class OkxParser(Parser):
                 spots[instrument_id] = spot
         return spots
 
-    def parse_ticker(self, response: any, market_type: str) -> list:
+    def parse_ticker(self, response: any, market_type: str) -> dict:
         if "data" in response:
             response = response["data"][0]
 
@@ -235,3 +235,25 @@ class OkxParser(Parser):
 
     def get_interval(self, interval: str) -> str:
         return self.interval_map[interval]
+
+    def parse_order_id(self, response: dict) -> int:
+        response = self.check_response(response)
+        data = response["data"][0]
+        return int(data["ordId"])
+
+    def parse_order_info(self, response: dict, info: dict) -> dict:
+        response = self.check_response(response)
+        data = response["data"][0]
+        return {
+            "timestamp": int(data["cTime"]),
+            "instrument_id": self.parse_unified_id(info),
+            "side": data["side"],
+            "price": float(data["px"]),
+            "volume": float(data["sz"]),
+            "fee_ccy": data["feeCcy"],
+            "fee": float(data["fee"]),
+            "order_id": int(data["ordId"]),
+            "order_type": data["ordType"],
+            "status": data["state"],
+            "raw_data": data,
+        }

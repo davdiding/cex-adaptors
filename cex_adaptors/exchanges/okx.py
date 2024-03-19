@@ -62,3 +62,99 @@ class OkxUnified(BaseClient):
 
     async def _get_account_config(self):
         return await self._get(self.BASE_ENDPOINT + "/api/v5/account/config", auth_data=self.auth_data)
+
+    async def _get_order_info(self, instId: str, ordId: str):
+        return await self._get(
+            self.BASE_ENDPOINT + "/api/v5/trade/order",
+            auth_data=self.auth_data,
+            params={"instId": instId, "ordId": ordId},
+        )
+
+    async def _place_order(
+        self,
+        instId: str,
+        side: str,
+        sz: str,
+        px: str = None,
+        tgtCcy: str = "base_ccy",
+        ordType: str = "market",
+        tdMode: str = "cross",
+        **kwargs
+    ):
+        params = {
+            k: v
+            for k, v in {
+                "instId": instId,
+                "tdMode": tdMode,
+                "side": side,
+                "ordType": ordType,
+                "sz": sz,
+                "px": px,
+                "tgtCcy": tgtCcy,
+            }.items()
+            if v
+        }
+        return await self._post(self.BASE_ENDPOINT + "/api/v5/trade/order", auth_data=self.auth_data, params=params)
+
+    async def _cancel_order(self, instId: str, ordId: str):
+        return await self._post(
+            self.BASE_ENDPOINT + "/api/v5/trade/cancel-order",
+            auth_data=self.auth_data,
+            params={"instId": instId, "ordId": ordId},
+        )
+
+    async def _get_opended_orders(
+        self,
+        instType: str = None,
+        instId: str = None,
+        ordType: str = None,
+        state: str = None,
+        after: int = None,
+        before: int = None,
+        limit: str = None,
+    ):
+        params = {
+            k: v
+            for k, v in {
+                "instType": instType,
+                "instId": instId,
+                "ordType": ordType,
+                "state": state,
+                "after": after,
+                "before": before,
+                "limit": limit,
+            }.items()
+            if v
+        }
+
+        return await self._get(
+            self.BASE_ENDPOINT + "/api/v5/trade/orders-pending", auth_data=self.auth_data, params=params
+        )
+
+    async def _get_history_orders(
+        self,
+        instType: str = None,
+        instId: str = None,
+        ordType: str = None,
+        state: str = None,
+        begin: str = None,
+        end: str = None,
+        limit: str = None,
+    ):
+        params = {
+            k: v
+            for k, v in {
+                "instType": instType,
+                "instId": instId,
+                "ordType": ordType,
+                "state": state,
+                "begin": begin,
+                "end": end,
+                "limit": limit,
+            }.items()
+            if v
+        }
+
+        return await self._get(
+            self.BASE_ENDPOINT + "/api/v5/trade/orders-history", auth_data=self.auth_data, params=params
+        )

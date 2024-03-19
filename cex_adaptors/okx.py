@@ -47,7 +47,7 @@ class Okx(OkxUnified):
             exchange_info = {**self.parser.combine_spot_margin_exchange_info(spot, margin), **futures, **perp}
         return exchange_info
 
-    async def get_tickers(self, market_type: str = None) -> list:
+    async def get_tickers(self, market_type: str = None) -> dict:
 
         if market_type == "spot":
             return self.parser.parse_tickers(await self._get_tickers("SPOT"), "spot", self.exchange_info)
@@ -155,5 +155,92 @@ class Okx(OkxUnified):
     async def get_positions(self):
         return self.parser.parse_positions(await self._get_positions(), self.exchange_info)
 
-    async def get_account_config(self):
+    async def get_account_info(self):
         return self.parser.parse_account_config(await self._get_account_config())
+
+    async def place_market_order(self, instrument_id: str, side: str, volume: float, in_quote: bool = False):
+        if instrument_id not in self.exchange_info:
+            raise Exception(f"{instrument_id} not found in exchange_info")
+
+        info = self.exchange_info[instrument_id]
+        _instrument_id = info["raw_data"]["instId"]
+        _order_type = "market"
+
+        order_id = self.parser.parse_order_id(
+            await self._place_order(
+                instId=_instrument_id,
+                side=side,
+                sz=str(volume),
+                ordType=_order_type,
+                tgtCcy="quote_ccy" if in_quote else "base_ccy",
+            )
+        )
+        return self.parser.parse_order_info(await self._get_order_info(_instrument_id, str(order_id)), info)
+
+    async def place_limit_order(
+        self, instrument_id: str, side: str, price: float, volume: float, in_quote: bool = False
+    ):
+        if instrument_id not in self.exchange_info:
+            raise Exception(f"{instrument_id} not found in exchange_info")
+
+        info = self.exchange_info[instrument_id]
+        _instrument_id = info["raw_data"]["instId"]
+        _order_type = "limit"
+
+        order_id = self.parser.parse_order_id(
+            await self._place_order(
+                instId=_instrument_id,
+                side=side,
+                sz=str(volume),
+                px=str(price),
+                ordType=_order_type,
+                tgtCcy="quote_ccy" if in_quote else "base_ccy",
+            )
+        )
+        return self.parser.parse_order_info(await self._get_order_info(_instrument_id, str(order_id)), info)
+
+    async def cancel_order(self, instrument_id: str, order_id: int):
+        if instrument_id not in self.exchange_info:
+            raise Exception(f"{instrument_id} not found in exchange_info")
+        info = self.exchange_info[instrument_id]
+        _instrument_id = info["raw_data"]["instId"]
+        return self.parser.parse_cancel_order(await self._cancel_order(_instrument_id, str(order_id)))
+
+    async def get_opened_orders(self, market_type: str = None, instrument_id: str = None) -> list:
+        results = []
+        params = {"limit": "100"}
+        if market_type:
+            _market_type = self.market_type_map[market_type]
+            params["instType"] = _market_type
+            results = self.parser.parse_opend_orders(await self._get_opended_orders(**params), infos=self.exchange_info)
+        elif instrument_id:
+            if instrument_id not in self.exchange_info:
+                raise Exception(f"{instrument_id} not found in exchange_info")
+            info = self.exchange_info[instrument_id]
+            _instrument_id = info["raw_data"]["instId"]
+            params["instId"] = _instrument_id
+            results = self.parser.parse_opend_orders(await self._get_opended_orders(**params), info=info)
+        else:
+            raise Exception("market_type or instrument_id must be provided")
+
+        return results
+
+    async def get_history_orders(self, market_type: str = None, instrument_id: str = None) -> list:
+        results = []
+        params = {"limit": "100"}
+
+        if market_type:
+            pass
+        elif instrument_id:
+            if instrument_id not in self.exchange_info:
+                raise Exception
+            info = self.exchange_info[instrument_id]
+            _instrument_id = info["raw_data"]["instId"]
+            _market = info["raw_data"]["instType"]
+            params.update({"instId": _instrument_id, "instType": _market})
+            results = self.parser.parse_history_orders(await self._get_history_orders(**params), info=info)
+
+        else:
+            raise Exception("market_type or instrument_id must be provided")
+
+        return results

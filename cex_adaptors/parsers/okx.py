@@ -23,6 +23,9 @@ class OkxParser(Parser):
         "3M": "3M",
     }
 
+    market_type_map = {"spot": "SPOT", "margin": "MARGIN", "futures": "FUTURES", "perp": "SWAP"}
+    _market_type_map = {"SPOT": "spot", "MARGIN": "margin", "FUTURES": "futures", "SWAP": "perp"}
+
     @staticmethod
     def check_response(response: dict):
         if response.get("code") == "0":
@@ -131,7 +134,7 @@ class OkxParser(Parser):
                 spots[instrument_id] = spot
         return spots
 
-    def parse_ticker(self, response: any, market_type: str) -> list:
+    def parse_ticker(self, response: any, market_type: str) -> dict:
         if "data" in response:
             response = response["data"][0]
 
@@ -235,3 +238,128 @@ class OkxParser(Parser):
 
     def get_interval(self, interval: str) -> str:
         return self.interval_map[interval]
+
+    def parse_order_id(self, response: dict) -> int:
+        response = self.check_response(response)
+        data = response["data"][0]
+        return int(data["ordId"])
+
+    def parse_order_info(self, response: dict, info: dict) -> dict:
+        response = self.check_response(response)
+        data = response["data"][0]
+        return {
+            "timestamp": int(data["cTime"]),
+            "instrument_id": self.parse_unified_id(info),
+            "side": data["side"],
+            "price": float(data["px"]),
+            "volume": float(data["sz"]),
+            "fee_ccy": data["feeCcy"],
+            "fee": float(data["fee"]),
+            "order_id": int(data["ordId"]),
+            "order_type": data["ordType"],
+            "status": data["state"],
+            "raw_data": data,
+        }
+
+    def parse_cancel_order(self, response: dict) -> dict:
+        response = self.check_response(response)
+        data = response["data"][0]
+        return {
+            "order_id": int(data["ordId"]),
+            "raw_data": data,
+        }
+
+    def parse_opend_orders(self, response: dict, info: dict = None, infos: dict = None) -> list:
+        response = self.check_response(response)
+        datas = response["data"]
+
+        results = []
+
+        if info:
+            for data in datas:
+                results.append(
+                    {
+                        "timestamp": int(data["cTime"]),
+                        "instrument_id": self.parse_unified_id(info),
+                        "market_type": self._market_type_map[data["instType"]],
+                        "side": data["side"],
+                        "price": float(data["px"]),
+                        "volume": float(data["sz"]),
+                        "order_id": int(data["ordId"]),
+                        "order_type": data["ordType"],
+                        "status": data["state"],
+                        "raw_data": data,
+                    }
+                )
+
+        elif infos:
+            id_map = self.get_id_map(infos)
+            for data in datas:
+                results.append(
+                    {
+                        "timestamp": int(data["cTime"]),
+                        "instrument_id": id_map[data["instId"]],
+                        "market_type": self._market_type_map[data["instType"]],
+                        "side": data["side"],
+                        "price": float(data["px"]),
+                        "volume": float(data["sz"]),
+                        "order_id": int(data["ordId"]),
+                        "order_type": data["ordType"],
+                        "status": data["state"],
+                        "raw_data": data,
+                    }
+                )
+        else:
+            raise Exception("info or infos must be provided")
+        return results
+
+    def parse_history_orders(self, response: dict, info: dict = None, infos: dict = None) -> list:
+        response = self.check_response(response)
+        datas = response["data"]
+
+        results = []
+        if info:
+            for data in datas:
+                results.append(
+                    {
+                        "timestamp": int(data["fillTime"]),
+                        "instrument_id": self.parse_unified_id(info),
+                        "market_type": self._market_type_map[data["instType"]],
+                        "side": data["side"],
+                        "executed_price": float(data["fillPx"]) if data["fillPx"] else None,
+                        "executed_volume": float(data["fillSz"]) if data["fillSz"] else None,
+                        "target_price": float(data["px"]) if data["px"] else None,
+                        "target_volume": float(data["sz"]),
+                        "fee_currency": data["feeCcy"],
+                        "fee": float(data["fee"]),
+                        "order_type": data["ordType"],
+                        "order_id": int(data["ordId"]),
+                        "status": data["state"],
+                        "raw_data": data,
+                    }
+                )
+        elif infos:
+            id_map = self.get_id_map(infos)
+            for data in datas:
+                results.append(
+                    {
+                        "timestamp": int(data["fillTime"]),
+                        "instrument_id": id_map[data["instId"]],
+                        "market_type": self._market_type_map[data["instType"]],
+                        "side": data["side"],
+                        "executed_price": float(data["fillPx"]) if data["fillPx"] else None,
+                        "executed_volume": float(data["fillSz"]) if data["fillSz"] else None,
+                        "target_price": float(data["px"]) if data["px"] else None,
+                        "target_volume": float(data["sz"]),
+                        "fee_currency": data["feeCcy"],
+                        "fee": float(data["fee"]),
+                        "order_type": data["ordType"],
+                        "order_id": int(data["ordId"]),
+                        "status": data["state"],
+                        "raw_data": data,
+                    }
+                )
+        else:
+            raise Exception("info or infos must be provided")
+
+        return results

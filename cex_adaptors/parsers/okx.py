@@ -199,6 +199,38 @@ class OkxParser(Parser):
             results[timestamp] = result
         return results
 
+    def parse_funding_rates(self, response: dict, info: dict) -> list:
+        response = self.check_response(response)
+        datas = response["data"]
+
+        results = []
+        for data in datas:
+            results.append(
+                {
+                    "timestamp": int(data["fundingTime"]),
+                    "instrument_id": self.parse_unified_id(info),
+                    "market": self._market_type_map[data["instType"]],
+                    "funding_rate": float(data["fundingRate"]),
+                    "realized_rate": float(data["realizedRate"]),
+                    "raw_data": data,
+                }
+            )
+        return results
+
+    def parse_current_funding_rate(self, resposne: dict, info: dict) -> dict:
+        response = self.check_response(resposne)
+        data = response["data"][0]
+        return {
+            "timestamp": int(data["ts"]),
+            "instrument_id": self.parse_unified_id(info),
+            "market": self._market_type_map[data["instType"]],
+            "funding_time": int(data["fundingTime"]),
+            "funding_rate": float(data["fundingRate"]),
+            "next_funding_time": int(data["nextFundingTime"]),
+            "next_funding_rate": float(data["nextFundingRate"]) if data["nextFundingRate"] else None,
+            "raw_data": data,
+        }
+
     def parse_balance(self, response: dict) -> dict:
         response = self.check_response(response)
 

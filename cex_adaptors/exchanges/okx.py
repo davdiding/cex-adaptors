@@ -50,6 +50,13 @@ class OkxUnified(BaseClient):
             params["limit"] = limit
         return await self._get(self.BASE_ENDPOINT + "/api/v5/market/candles", params=params)
 
+    async def _get_current_funding_rate(self, instId: str):
+        return await self._get(self.BASE_ENDPOINT + "/api/v5/public/funding-rate", params={"instId": instId})
+
+    async def _get_history_funding_rate(self, instId: str, after: int = None, before: int = None, limit: int = None):
+        params = {k: v for k, v in {"instId": instId, "after": after, "before": before, "limit": limit}.items() if v}
+        return await self._get(self.BASE_ENDPOINT + "/api/v5/public/funding-rate-history", params=params)
+
     async def _get_balance(self, currency: str = None):
         params = {}
         if currency:

@@ -130,3 +130,31 @@ class OkxUnified(BaseClient):
         return await self._get(
             self.BASE_ENDPOINT + "/api/v5/trade/orders-pending", auth_data=self.auth_data, params=params
         )
+
+    async def _get_history_orders(
+        self,
+        instType: str = None,
+        instId: str = None,
+        ordType: str = None,
+        state: str = None,
+        begin: str = None,
+        end: str = None,
+        limit: str = None,
+    ):
+        params = {
+            k: v
+            for k, v in {
+                "instType": instType,
+                "instId": instId,
+                "ordType": ordType,
+                "state": state,
+                "begin": begin,
+                "end": end,
+                "limit": limit,
+            }.items()
+            if v
+        }
+
+        return await self._get(
+            self.BASE_ENDPOINT + "/api/v5/trade/orders-history", auth_data=self.auth_data, params=params
+        )

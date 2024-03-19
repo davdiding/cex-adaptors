@@ -224,3 +224,23 @@ class Okx(OkxUnified):
             raise Exception("market_type or instrument_id must be provided")
 
         return results
+
+    async def get_history_orders(self, market_type: str = None, instrument_id: str = None) -> list:
+        results = []
+        params = {"limit": "100"}
+
+        if market_type:
+            pass
+        elif instrument_id:
+            if instrument_id not in self.exchange_info:
+                raise Exception
+            info = self.exchange_info[instrument_id]
+            _instrument_id = info["raw_data"]["instId"]
+            _market = info["raw_data"]["instType"]
+            params.update({"instId": _instrument_id, "instType": _market})
+            results = self.parser.parse_history_orders(await self._get_history_orders(**params), info=info)
+
+        else:
+            raise Exception("market_type or instrument_id must be provided")
+
+        return results

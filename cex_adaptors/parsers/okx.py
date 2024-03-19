@@ -312,3 +312,54 @@ class OkxParser(Parser):
         else:
             raise Exception("info or infos must be provided")
         return results
+
+    def parse_history_orders(self, response: dict, info: dict = None, infos: dict = None) -> list:
+        response = self.check_response(response)
+        datas = response["data"]
+
+        results = []
+        if info:
+            for data in datas:
+                results.append(
+                    {
+                        "timestamp": int(data["fillTime"]),
+                        "instrument_id": self.parse_unified_id(info),
+                        "market_type": self._market_type_map[data["instType"]],
+                        "side": data["side"],
+                        "executed_price": float(data["fillPx"]) if data["fillPx"] else None,
+                        "executed_volume": float(data["fillSz"]) if data["fillSz"] else None,
+                        "target_price": float(data["px"]) if data["px"] else None,
+                        "target_volume": float(data["sz"]),
+                        "fee_currency": data["feeCcy"],
+                        "fee": float(data["fee"]),
+                        "order_type": data["ordType"],
+                        "order_id": int(data["ordId"]),
+                        "status": data["state"],
+                        "raw_data": data,
+                    }
+                )
+        elif infos:
+            id_map = self.get_id_map(infos)
+            for data in datas:
+                results.append(
+                    {
+                        "timestamp": int(data["fillTime"]),
+                        "instrument_id": id_map[data["instId"]],
+                        "market_type": self._market_type_map[data["instType"]],
+                        "side": data["side"],
+                        "executed_price": float(data["fillPx"]) if data["fillPx"] else None,
+                        "executed_volume": float(data["fillSz"]) if data["fillSz"] else None,
+                        "target_price": float(data["px"]) if data["px"] else None,
+                        "target_volume": float(data["sz"]),
+                        "fee_currency": data["feeCcy"],
+                        "fee": float(data["fee"]),
+                        "order_type": data["ordType"],
+                        "order_id": int(data["ordId"]),
+                        "status": data["state"],
+                        "raw_data": data,
+                    }
+                )
+        else:
+            raise Exception("info or infos must be provided")
+
+        return results

@@ -205,3 +205,22 @@ class Okx(OkxUnified):
         info = self.exchange_info[instrument_id]
         _instrument_id = info["raw_data"]["instId"]
         return self.parser.parse_cancel_order(await self._cancel_order(_instrument_id, str(order_id)))
+
+    async def get_opened_orders(self, market_type: str = None, instrument_id: str = None) -> list:
+        results = []
+        params = {"limit": "100"}
+        if market_type:
+            _market_type = self.market_type_map[market_type]
+            params["instType"] = _market_type
+            results = self.parser.parse_opend_orders(await self._get_opended_orders(**params), infos=self.exchange_info)
+        elif instrument_id:
+            if instrument_id not in self.exchange_info:
+                raise Exception(f"{instrument_id} not found in exchange_info")
+            info = self.exchange_info[instrument_id]
+            _instrument_id = info["raw_data"]["instId"]
+            params["instId"] = _instrument_id
+            results = self.parser.parse_opend_orders(await self._get_opended_orders(**params), info=info)
+        else:
+            raise Exception("market_type or instrument_id must be provided")
+
+        return results

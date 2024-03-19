@@ -23,6 +23,9 @@ class OkxParser(Parser):
         "3M": "3M",
     }
 
+    market_type_map = {"spot": "SPOT", "margin": "MARGIN", "futures": "FUTURES", "perp": "SWAP"}
+    _market_type_map = {"SPOT": "spot", "MARGIN": "margin", "FUTURES": "futures", "SWAP": "perp"}
+
     @staticmethod
     def check_response(response: dict):
         if response.get("code") == "0":
@@ -265,3 +268,47 @@ class OkxParser(Parser):
             "order_id": int(data["ordId"]),
             "raw_data": data,
         }
+
+    def parse_opend_orders(self, response: dict, info: dict = None, infos: dict = None) -> list:
+        response = self.check_response(response)
+        datas = response["data"]
+
+        results = []
+
+        if info:
+            for data in datas:
+                results.append(
+                    {
+                        "timestamp": int(data["cTime"]),
+                        "instrument_id": self.parse_unified_id(info),
+                        "market_type": self._market_type_map[data["instType"]],
+                        "side": data["side"],
+                        "price": float(data["px"]),
+                        "volume": float(data["sz"]),
+                        "order_id": int(data["ordId"]),
+                        "order_type": data["ordType"],
+                        "status": data["state"],
+                        "raw_data": data,
+                    }
+                )
+
+        elif infos:
+            id_map = self.get_id_map(infos)
+            for data in datas:
+                results.append(
+                    {
+                        "timestamp": int(data["cTime"]),
+                        "instrument_id": id_map[data["instId"]],
+                        "market_type": self._market_type_map[data["instType"]],
+                        "side": data["side"],
+                        "price": float(data["px"]),
+                        "volume": float(data["sz"]),
+                        "order_id": int(data["ordId"]),
+                        "order_type": data["ordType"],
+                        "status": data["state"],
+                        "raw_data": data,
+                    }
+                )
+        else:
+            raise Exception("info or infos must be provided")
+        return results

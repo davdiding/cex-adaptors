@@ -102,3 +102,31 @@ class OkxUnified(BaseClient):
             auth_data=self.auth_data,
             params={"instId": instId, "ordId": ordId},
         )
+
+    async def _get_opended_orders(
+        self,
+        instType: str = None,
+        instId: str = None,
+        ordType: str = None,
+        state: str = None,
+        after: int = None,
+        before: int = None,
+        limit: str = None,
+    ):
+        params = {
+            k: v
+            for k, v in {
+                "instType": instType,
+                "instId": instId,
+                "ordType": ordType,
+                "state": state,
+                "after": after,
+                "before": before,
+                "limit": limit,
+            }.items()
+            if v
+        }
+
+        return await self._get(
+            self.BASE_ENDPOINT + "/api/v5/trade/orders-pending", auth_data=self.auth_data, params=params
+        )

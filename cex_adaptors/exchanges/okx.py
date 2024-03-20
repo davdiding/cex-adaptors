@@ -65,6 +65,10 @@ class OkxUnified(BaseClient):
             self.BASE_ENDPOINT + "/api/v5/public/mark-price", params={"instId": instId, "instType": instType}
         )
 
+    async def _get_open_interest(self, instId: str = None, instType: str = None):
+        params = {k: v for k, v in {"instId": instId, "instType": instType}.items() if v}
+        return await self._get(self.BASE_ENDPOINT + "/api/v5/public/open-interest", params={**params})
+
     # Private endpoints
 
     async def _get_balance(self, currency: str = None):

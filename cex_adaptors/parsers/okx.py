@@ -383,3 +383,24 @@ class OkxParser(Parser):
             "mark_price": self.parse_str(data["markPx"], float),
             "raw_data": data,
         }
+
+    def parse_open_interest(self, response: dict, infos: dict) -> any:
+        response = self.check_response(response)
+        datas = response["data"]
+
+        id_map = self.get_id_map(infos)
+
+        results = []
+        for data in datas:
+            results.append(
+                {
+                    "timestamp": self.parse_str(data["ts"], int),
+                    "instrument_id": id_map[data["instId"]],
+                    "market_type": self._market_type_map[data["instType"]],
+                    "oi_contract": self.parse_str(data["oi"], float),
+                    "oi_currency": self.parse_str(data["oiCcy"], float),
+                    "raw_data": data,
+                }
+            )
+
+        return results[0] if len(results) == 1 else results

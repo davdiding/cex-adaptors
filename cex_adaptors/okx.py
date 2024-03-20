@@ -234,6 +234,23 @@ class Okx(OkxUnified):
             await self._get_mark_price(_instrument_id, _market_type), instrument_id=instrument_id
         )
 
+    async def get_open_interest(self, instrument_id: str = None, market_type: str = None) -> dict:
+        if instrument_id:
+            if instrument_id not in self.exchange_info:
+                raise Exception(f"{instrument_id} not found in exchange_info")
+            info = self.exchange_info[instrument_id]
+            _instrument_id = info["raw_data"]["instId"]
+            return self.parser.parse_open_interest(
+                await self._get_open_interest(instId=_instrument_id), self.exchange_info
+            )
+
+        elif market_type:
+            _market = self.market_type_map[market_type]
+            return self.parser.parse_open_interest(await self._get_open_interest(instType=_market), self.exchange_info)
+
+        else:
+            raise Exception("instrument_id or market must be provided")
+
     # Private endpoint
 
     async def get_balance(self):

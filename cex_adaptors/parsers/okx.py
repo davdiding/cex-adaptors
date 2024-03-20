@@ -353,3 +353,33 @@ class OkxParser(Parser):
                 }
             )
         return results
+
+    def parse_last_price(self, response: dict, instrument_id: str) -> dict:
+        response = self.check_response(response)
+        data = response["data"][0]
+        return {
+            "timestamp": self.parse_str(data["ts"], int),
+            "instrument_id": instrument_id,
+            "last_price": self.parse_str(data["last"], float),
+            "raw_data": data,
+        }
+
+    def parse_index_price(self, response: dict, instrument_id: str) -> dict:
+        response = self.check_response(response)
+        data = response["data"][0]
+        return {
+            "timestamp": self.parse_str(data["ts"], int),
+            "instrument_id": instrument_id,
+            "index_price": self.parse_str(data["idxPx"], float),
+            "raw_data": data,
+        }
+
+    def parse_mark_price(self, response: dict, instrument_id: str) -> dict:
+        response = self.check_response(response)
+        data = response["data"][0]
+        return {
+            "timestamp": self.parse_str(data["ts"], int),
+            "instrument_id": instrument_id,
+            "mark_price": self.parse_str(data["markPx"], float),
+            "raw_data": data,
+        }

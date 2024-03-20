@@ -271,10 +271,10 @@ class OkxParser(Parser):
     def get_interval(self, interval: str) -> str:
         return self.interval_map[interval]
 
-    def parse_order_id(self, response: dict) -> int:
+    def parse_order_id(self, response: dict) -> str:
         response = self.check_response(response)
         data = response["data"][0]
-        return int(data["ordId"])
+        return str(data["ordId"])
 
     def parse_order_info(self, response: dict, info: dict) -> dict:
         response = self.check_response(response)
@@ -287,7 +287,7 @@ class OkxParser(Parser):
             "volume": self.parse_str(data["sz"], float),
             "fee_ccy": data["feeCcy"],
             "fee": self.parse_str(data["fee"], float),
-            "order_id": int(data["ordId"]),
+            "order_id": str(data["ordId"]),
             "order_type": data["ordType"],
             "status": data["state"],
             "raw_data": data,
@@ -297,7 +297,7 @@ class OkxParser(Parser):
         response = self.check_response(response)
         data = response["data"][0]
         return {
-            "order_id": int(data["ordId"]),
+            "order_id": str(data["ordId"]),
             "raw_data": data,
         }
 
@@ -318,7 +318,7 @@ class OkxParser(Parser):
                     "side": data["side"],
                     "price": self.parse_str(data["px"], float),
                     "volume": self.parse_str(data["sz"], float),
-                    "order_id": int(data["ordId"]),
+                    "order_id": str(data["ordId"]),
                     "order_type": data["ordType"],
                     "status": data["state"],
                     "raw_data": data,
@@ -347,7 +347,7 @@ class OkxParser(Parser):
                     "fee_currency": data["feeCcy"],
                     "fee": self.parse_str(data["fee"], float),
                     "order_type": data["ordType"],
-                    "order_id": int(data["ordId"]),
+                    "order_id": str(data["ordId"]),
                     "status": data["state"],
                     "raw_data": data,
                 }

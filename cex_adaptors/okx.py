@@ -175,7 +175,7 @@ class Okx(OkxUnified):
                 tgtCcy="quote_ccy" if in_quote else "base_ccy",
             )
         )
-        return self.parser.parse_order_info(await self._get_order_info(_instrument_id, str(order_id)), info)
+        return self.parser.parse_order_info(await self._get_order_info(_instrument_id, order_id), info)
 
     async def place_limit_order(
         self, instrument_id: str, side: str, price: float, volume: float, in_quote: bool = False
@@ -197,17 +197,16 @@ class Okx(OkxUnified):
                 tgtCcy="quote_ccy" if in_quote else "base_ccy",
             )
         )
-        return self.parser.parse_order_info(await self._get_order_info(_instrument_id, str(order_id)), info)
+        return self.parser.parse_order_info(await self._get_order_info(_instrument_id, order_id), info)
 
-    async def cancel_order(self, instrument_id: str, order_id: int):
+    async def cancel_order(self, instrument_id: str, order_id: str):
         if instrument_id not in self.exchange_info:
             raise Exception(f"{instrument_id} not found in exchange_info")
         info = self.exchange_info[instrument_id]
         _instrument_id = info["raw_data"]["instId"]
-        return self.parser.parse_cancel_order(await self._cancel_order(_instrument_id, str(order_id)))
+        return self.parser.parse_cancel_order(await self._cancel_order(_instrument_id, order_id))
 
     async def get_opened_orders(self, market_type: str = None, instrument_id: str = None) -> list:
-        results = []
         params = {"limit": "100"}
         if market_type:
             _market_type = self.market_type_map[market_type]
@@ -221,7 +220,9 @@ class Okx(OkxUnified):
             info = self.exchange_info[instrument_id]
             _instrument_id = info["raw_data"]["instId"]
             params["instId"] = _instrument_id
-            results = self.parser.parse_opened_orders(await self._get_opended_orders(**params), info=info)
+            results = self.parser.parse_opened_orders(
+                await self._get_opended_orders(**params), infos=self.exchange_info
+            )
         else:
             raise Exception("market_type or instrument_id must be provided")
 

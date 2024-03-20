@@ -353,3 +353,82 @@ class OkxParser(Parser):
                 }
             )
         return results
+
+    def parse_last_price(self, response: dict, instrument_id: str) -> dict:
+        response = self.check_response(response)
+        data = response["data"][0]
+        return {
+            "timestamp": self.parse_str(data["ts"], int),
+            "instrument_id": instrument_id,
+            "last_price": self.parse_str(data["last"], float),
+            "raw_data": data,
+        }
+
+    def parse_index_price(self, response: dict, instrument_id: str) -> dict:
+        response = self.check_response(response)
+        data = response["data"][0]
+        return {
+            "timestamp": self.parse_str(data["ts"], int),
+            "instrument_id": instrument_id,
+            "index_price": self.parse_str(data["idxPx"], float),
+            "raw_data": data,
+        }
+
+    def parse_mark_price(self, response: dict, instrument_id: str) -> dict:
+        response = self.check_response(response)
+        data = response["data"][0]
+        return {
+            "timestamp": self.parse_str(data["ts"], int),
+            "instrument_id": instrument_id,
+            "mark_price": self.parse_str(data["markPx"], float),
+            "raw_data": data,
+        }
+
+    def parse_open_interest(self, response: dict, infos: dict) -> any:
+        response = self.check_response(response)
+        datas = response["data"]
+
+        id_map = self.get_id_map(infos)
+
+        results = []
+        for data in datas:
+            results.append(
+                {
+                    "timestamp": self.parse_str(data["ts"], int),
+                    "instrument_id": id_map[data["instId"]],
+                    "market_type": self._market_type_map[data["instType"]],
+                    "oi_contract": self.parse_str(data["oi"], float),
+                    "oi_currency": self.parse_str(data["oiCcy"], float),
+                    "raw_data": data,
+                }
+            )
+
+        return results[0] if len(results) == 1 else results
+
+    def parse_orderbook(self, response: dict, info: dict) -> dict:
+        response = self.check_response(response)
+        datas = response["data"][0]
+
+        asks = datas["asks"]
+        bids = datas["bids"]
+        return {
+            "timestamp": self.parse_str(datas["ts"], int),
+            "instrument_id": self.parse_unified_id(info),
+            "asks": [
+                {
+                    "price": self.parse_str(ask[0], float),
+                    "volume": self.parse_str(ask[1], float),
+                    "order_number": self.parse_str(ask[3], int),
+                }
+                for ask in asks
+            ],
+            "bids": [
+                {
+                    "price": self.parse_str(bid[0], float),
+                    "volume": self.parse_str(bid[1], float),
+                    "order_number": self.parse_str(bid[3], int),
+                }
+                for bid in bids
+            ],
+            "raw_data": datas,
+        }

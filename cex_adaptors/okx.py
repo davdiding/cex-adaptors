@@ -149,6 +149,117 @@ class Okx(OkxUnified):
 
         return results
 
+    async def get_history_funding_rate(
+        self, instrument_id: str, start: int = None, end: int = None, num: int = 30
+    ) -> list:
+        if instrument_id not in self.exchange_info:
+            raise Exception(f"{instrument_id} not found in exchange_info")
+
+        info = self.exchange_info[instrument_id]
+        _instrument_id = info["raw_data"]["instId"]
+        limit = 100
+        params = {"instId": _instrument_id, "limit": limit}
+        results = []
+        query_end = None
+
+        if start and end:
+            query_end = end + 1
+            while True:
+                params.update({"after": query_end})
+                result = self.parser.parse_funding_rates(
+                    await self._get_history_funding_rate(**params),
+                    info,
+                )
+                results.extend(result)
+                if not result or len(result) < limit:
+                    break
+                query_end = min([v["timestamp"] for v in result])
+
+                if query_end < start:
+                    break
+                continue
+            return [v for v in results if start <= v["timestamp"] <= end]
+
+        elif num:
+            while True:
+                params.update({"after": query_end} if query_end else {})
+                result = self.parser.parse_funding_rates(
+                    await self._get_history_funding_rate(**params),
+                    info,
+                )
+                results.extend(result)
+
+                # exclude same timestamp
+                results = list({v["timestamp"]: v for v in results}.values())
+
+                if not result or len(result) < limit or len(results) >= num:
+                    break
+
+                query_end = min([v["timestamp"] for v in result])
+                continue
+            return sorted(results, key=lambda x: x["timestamp"], reverse=False)[-num:]
+
+        else:
+            raise Exception("(start, end) or num must be provided")
+
+    async def get_current_funding_rate(self, instrument_id: str) -> dict:
+        if instrument_id not in self.exchange_info:
+            raise Exception(f"{instrument_id} not found in exchange_info")
+        info = self.exchange_info[instrument_id]
+        _instrument_id = info["raw_data"]["instId"]
+        return self.parser.parse_current_funding_rate(await self._get_current_funding_rate(_instrument_id), info)
+
+    async def get_last_price(self, instrument_id: str) -> dict:
+        if instrument_id not in self.exchange_info:
+            raise Exception(f"{instrument_id} not found in exchange_info")
+        info = self.exchange_info[instrument_id]
+        _instrument_id = info["raw_data"]["instId"]
+        return self.parser.parse_last_price(await self._get_ticker(_instrument_id), instrument_id=instrument_id)
+
+    async def get_index_price(self, instrument_id: str) -> dict:
+        if instrument_id not in self.exchange_info:
+            raise Exception(f"{instrument_id} not found in exchange_info")
+        info = self.exchange_info[instrument_id]
+        _instrument_id = info["raw_data"]["instId"]
+        return self.parser.parse_index_price(await self._get_index_ticker(_instrument_id), instrument_id=instrument_id)
+
+    async def get_mark_price(self, instrument_id: str) -> dict:
+        if instrument_id not in self.exchange_info:
+            raise Exception(f"{instrument_id} not found in exchange_info")
+        info = self.exchange_info[instrument_id]
+        _instrument_id = info["raw_data"]["instId"]
+        _market_type = info["raw_data"]["instType"].replace("SPOT", "MARGIN")  # endpoint does not support SPOT
+
+        return self.parser.parse_mark_price(
+            await self._get_mark_price(_instrument_id, _market_type), instrument_id=instrument_id
+        )
+
+    async def get_open_interest(self, instrument_id: str = None, market_type: str = None) -> dict:
+        if instrument_id:
+            if instrument_id not in self.exchange_info:
+                raise Exception(f"{instrument_id} not found in exchange_info")
+            info = self.exchange_info[instrument_id]
+            _instrument_id = info["raw_data"]["instId"]
+            return self.parser.parse_open_interest(
+                await self._get_open_interest(instId=_instrument_id), self.exchange_info
+            )
+
+        elif market_type:
+            _market = self.market_type_map[market_type]
+            return self.parser.parse_open_interest(await self._get_open_interest(instType=_market), self.exchange_info)
+
+        else:
+            raise Exception("instrument_id or market must be provided")
+
+    async def get_orderbook(self, instrument_id: str, depth: int = 20):
+        if instrument_id not in self.exchange_info:
+            raise Exception(f"{instrument_id} not found in exchange_info")
+        info = self.exchange_info[instrument_id]
+        _instrument_id = info["raw_data"]["instId"]
+        return self.parser.parse_orderbook(await self._get_orderbook(_instrument_id, str(depth)), info)
+
+    # Private endpoint
+
     async def get_balance(self):
         return self.parser.parse_balance(await self._get_balance())
 
@@ -249,63 +360,3 @@ class Okx(OkxUnified):
             raise Exception("market_type or instrument_id must be provided")
 
         return results
-
-    async def get_history_funding_rate(
-        self, instrument_id: str, start: int = None, end: int = None, num: int = 30
-    ) -> list:
-        if instrument_id not in self.exchange_info:
-            raise Exception(f"{instrument_id} not found in exchange_info")
-
-        info = self.exchange_info[instrument_id]
-        _instrument_id = info["raw_data"]["instId"]
-        limit = 100
-        params = {"instId": _instrument_id, "limit": limit}
-        results = []
-        query_end = None
-
-        if start and end:
-            query_end = end + 1
-            while True:
-                params.update({"after": query_end})
-                result = self.parser.parse_funding_rates(
-                    await self._get_history_funding_rate(**params),
-                    info,
-                )
-                results.extend(result)
-                if not result or len(result) < limit:
-                    break
-                query_end = min([v["timestamp"] for v in result])
-
-                if query_end < start:
-                    break
-                continue
-            return [v for v in results if start <= v["timestamp"] <= end]
-
-        elif num:
-            while True:
-                params.update({"after": query_end} if query_end else {})
-                result = self.parser.parse_funding_rates(
-                    await self._get_history_funding_rate(**params),
-                    info,
-                )
-                results.extend(result)
-
-                # exclude same timestamp
-                results = list({v["timestamp"]: v for v in results}.values())
-
-                if not result or len(result) < limit or len(results) >= num:
-                    break
-
-                query_end = min([v["timestamp"] for v in result])
-                continue
-            return sorted(results, key=lambda x: x["timestamp"], reverse=False)[-num:]
-
-        else:
-            raise Exception("(start, end) or num must be provided")
-
-    async def get_current_funding_rate(self, instrument_id: str) -> dict:
-        if instrument_id not in self.exchange_info:
-            raise Exception(f"{instrument_id} not found in exchange_info")
-        info = self.exchange_info[instrument_id]
-        _instrument_id = info["raw_data"]["instId"]
-        return self.parser.parse_current_funding_rate(await self._get_current_funding_rate(_instrument_id), info)

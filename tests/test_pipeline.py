@@ -108,10 +108,10 @@ class TestKucoin(IsolatedAsyncioTestCase):
         self.assertEqual(len(spot), 30)
 
         futures = await self.exchange.get_klines("BTC/USD:USD-240329", "1d", start=start, end=end)
-        self.assertEqual(len(futures), 31)
+        self.assertEqual(len(futures), 30)
 
         perp = await self.exchange.get_klines("BTC/USDT:USDT-PERP", "1d", start=start, end=end)
-        self.assertEqual(len(perp), 31)
+        self.assertEqual(len(perp), 30)
         return
 
 

@@ -22,6 +22,12 @@ class Parser:
     STABLE_CURRENCY = ["USDT", "USDC"]
     FIAT_CURRENCY = ["USD"]
 
+    @staticmethod
+    def parse_str(data: str, method: callable):
+        if not data:
+            return None
+        return method(data)
+
     def get_result_with_parser(self, data: dict, parser: dict) -> dict:
         results = {}
         for key in parser:

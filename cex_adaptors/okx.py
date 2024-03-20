@@ -251,6 +251,13 @@ class Okx(OkxUnified):
         else:
             raise Exception("instrument_id or market must be provided")
 
+    async def get_orderbook(self, instrument_id: str, depth: int = 20):
+        if instrument_id not in self.exchange_info:
+            raise Exception(f"{instrument_id} not found in exchange_info")
+        info = self.exchange_info[instrument_id]
+        _instrument_id = info["raw_data"]["instId"]
+        return self.parser.parse_orderbook(await self._get_orderbook(_instrument_id, str(depth)), info)
+
     # Private endpoint
 
     async def get_balance(self):

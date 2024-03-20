@@ -404,3 +404,31 @@ class OkxParser(Parser):
             )
 
         return results[0] if len(results) == 1 else results
+
+    def parse_orderbook(self, response: dict, info: dict) -> dict:
+        response = self.check_response(response)
+        datas = response["data"][0]
+
+        asks = datas["asks"]
+        bids = datas["bids"]
+        return {
+            "timestamp": self.parse_str(datas["ts"], int),
+            "instrument_id": self.parse_unified_id(info),
+            "asks": [
+                {
+                    "price": self.parse_str(ask[0], float),
+                    "volume": self.parse_str(ask[1], float),
+                    "order_number": self.parse_str(ask[3], int),
+                }
+                for ask in asks
+            ],
+            "bids": [
+                {
+                    "price": self.parse_str(bid[0], float),
+                    "volume": self.parse_str(bid[1], float),
+                    "order_number": self.parse_str(bid[3], int),
+                }
+                for bid in bids
+            ],
+            "raw_data": datas,
+        }

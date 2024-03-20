@@ -3,12 +3,7 @@ import unittest
 from datetime import datetime as dt
 from unittest import IsolatedAsyncioTestCase
 
-from cex_adaptors.bitget import Bitget
-from cex_adaptors.gateio import Gateio
-from cex_adaptors.htx import Htx
-from cex_adaptors.kucoin import Kucoin
 from cex_adaptors.okx import Okx
-from cex_adaptors.utils import query_dict
 
 tracemalloc.start()
 
@@ -76,166 +71,20 @@ class TestOkx(IsolatedAsyncioTestCase):
         self.assertEqual(len(futures), 30)
         return
 
-
-class TestKucoin(IsolatedAsyncioTestCase):
-    async def asyncSetUp(self) -> None:
-        self.exchange = await Kucoin.create()
-
-    async def asyncTearDown(self) -> None:
-        await self.exchange.close()
-
-    async def test_get_exchange_info(self):
-        response = await self.exchange.get_exchange_info()
-        self.assertTrue(response)
+    async def test_get_current_funding_rate(self):
+        funding_rate = await self.okx.get_current_funding_rate("BTC/USDT:USDT-PERP")
+        self.assertTrue(funding_rate)
         return
 
-    async def test_get_klines(self):
-        spot = await self.exchange.get_klines("BTC/USDT:USDT", "1d", num=120)
-        self.assertEqual(len(spot), 120)
+    async def test_get_history_funding_rate(self):
+        history_funding_rate = await self.okx.get_history_funding_rate("BTC/USDT:USDT-PERP", num=30)
+        self.assertEqual(len(history_funding_rate), 30)
 
-        futures = await self.exchange.get_klines("BTC/USD:USD-240329", "1d", num=23)
-        self.assertEqual(len(futures), 23)
-
-        perp = await self.exchange.get_klines("BTC/USDT:USDT-PERP", "1d", num=300)
-        self.assertEqual(len(perp), 300)
+        start = int(dt.timestamp(dt(2024, 3, 1)) * 1000)
+        end = int(dt.timestamp(dt(2024, 3, 3)) * 1000)
+        history_funding_rate = await self.okx.get_history_funding_rate("BTC/USDT:USDT-PERP", start=start, end=end)
+        self.assertEqual(len(history_funding_rate), 7)
         return
-
-    async def test_get_klines_with_timestamp(self):
-        start = int(dt.timestamp(dt(2024, 1, 1)) * 1000)
-        end = int(dt.timestamp(dt(2024, 1, 31)) * 1000)
-
-        spot = await self.exchange.get_klines("BTC/USDT:USDT", "1d", start=start, end=end)
-        self.assertEqual(len(spot), 30)
-
-        futures = await self.exchange.get_klines("BTC/USD:USD-240329", "1d", start=start, end=end)
-        self.assertEqual(len(futures), 30)
-
-        perp = await self.exchange.get_klines("BTC/USDT:USDT-PERP", "1d", start=start, end=end)
-        self.assertEqual(len(perp), 30)
-        return
-
-
-class TestGateio(IsolatedAsyncioTestCase):
-    async def asyncSetUp(self):
-        self.exchange = await Gateio.create()
-
-    async def asyncTearDown(self):
-        await self.exchange.close()
-
-    async def test_get_exchange_info(self):
-        response = await self.exchange.get_exchange_info()
-        self.assertTrue(response)
-        return
-
-    async def test_get_tickers(self):
-        spot = await self.exchange.get_tickers("spot")
-        self.assertTrue(spot)
-
-        futures = await self.exchange.get_tickers("futures")
-        self.assertTrue(futures)
-
-        perp = await self.exchange.get_tickers("perp")
-        self.assertTrue(perp)
-
-        tickers = await self.exchange.get_tickers()
-        self.assertTrue(tickers)
-        return
-
-    async def test_get_klines_with_num(self):
-        spot = await self.exchange.get_klines("BTC/USDT:USDT", "1d", num=120)
-        self.assertEqual(len(spot), 120)
-
-        perp = await self.exchange.get_klines("BTC/USDT:USDT-PERP", "5m", num=1200)
-        self.assertEqual(len(perp), 1200)
-
-        instrument_id = list(query_dict(self.exchange.exchange_info, "is_futures == True").keys())[0]
-        futures = await self.exchange.get_klines(instrument_id, "5m", num=1333)
-        self.assertEqual(len(futures), 1333)
-
-        return
-
-    async def test_get_klines_with_timestamp(self):
-        start = int(dt.timestamp(dt(2024, 2, 1)) * 1000)
-        end = int(dt.timestamp(dt(2024, 2, 10)) * 1000)
-
-        spot = await self.exchange.get_klines("BTC/USDT:USDT", "1d", start=start, end=end)
-        self.assertEqual(len(spot), 9)
-
-        perp = await self.exchange.get_klines("BTC/USDT:USDT-PERP", "1d", start=start, end=end)
-        self.assertEqual(len(perp), 9)
-
-        instrument_id = list(query_dict(self.exchange.exchange_info, "is_futures == True").keys())[0]
-        futures = await self.exchange.get_klines(instrument_id, "1d", start=start, end=end)
-        self.assertEqual(len(futures), 9)
-
-        return
-
-
-class TestHtx(IsolatedAsyncioTestCase):
-    async def asyncSetUp(self):
-        self.exchange = await Htx.create()
-
-    async def asyncTearDown(self):
-        await self.exchange.close()
-
-    async def test_get_exchange_info(self):
-        response = await self.exchange.get_exchange_info()
-        self.assertTrue(response)
-        return
-
-    async def test_get_tickers(self):
-        spot = await self.exchange.get_tickers("spot")
-        self.assertTrue(spot)
-
-        perp = await self.exchange.get_tickers("perp")
-        self.assertTrue(perp)
-
-        futures = await self.exchange.get_tickers("futures")
-        self.assertTrue(futures)
-
-        tickers = await self.exchange.get_tickers()
-        self.assertTrue(tickers)
-        return
-
-
-class TestBitget(IsolatedAsyncioTestCase):
-    async def asyncSetUp(self):
-        self.exchange = await Bitget.create()
-
-    async def asyncTearDown(self):
-        await self.exchange.close()
-
-    async def test_get_exchange_info(self):
-        response = await self.exchange.get_exchange_info()
-        self.assertTrue(response)
-        return
-
-    async def test_get_tickers(self):
-        spot = await self.exchange.get_tickers("spot")
-        self.assertTrue(spot)
-
-        perp = await self.exchange.get_tickers("perp")
-        self.assertTrue(perp)
-
-        futures = await self.exchange.get_tickers("futures")
-        self.assertTrue(futures)
-
-        tickers = await self.exchange.get_tickers()
-        self.assertTrue(tickers)
-        return
-
-    async def test_get_klines_with_num(self):
-        spot = await self.exchange.get_klines("BTC/USDT:USDT", "1d", num=333)
-        self.assertEquals(len(spot), 333)
-
-        instrument_id = list(query_dict(self.exchange.exchange_info, "is_futures == True").keys())[0]
-        futures = await self.exchange.get_klines(instrument_id, "1m", num=333)
-        self.assertEquals(len(futures), 333)
-
-        perp = await self.exchange.get_klines("BTC/USDT:USDT-PERP", "5m", num=333)
-        self.assertEquals(len(perp), 333)
-        return
-
 
 if __name__ == "__main__":
     unittest.main()

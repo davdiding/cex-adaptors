@@ -87,3 +87,70 @@ class BinanceAuth(object):
         signature = hmac.new(self.api_secret.encode("utf-8"), payload.encode("utf-8"), hashlib.sha256).hexdigest()
         params["signature"] = signature
         return params
+
+
+class BybitAuth(object):
+    def __init__(self, api_key: str, api_secret: str):
+        self.api_key = api_key
+        self.api_secret = api_secret
+
+        self.payload = ""
+
+    def get_private_header(self, method: str, request_path: str, params: dict):
+        timestamp = self.get_timestamp()
+        recv_window = 5000
+        payload = self.get_payload(method, params)
+        self.payload = payload
+
+        signature = self.get_signature(payload, timestamp, recv_window)
+
+        headers = {
+            "Content-Type": "application/json",
+            "X-BAPI-API-KEY": self.api_key,
+            "X-BAPI-SIGN": signature,
+            "X-BAPI-SIGN-TYPE": "2",
+            "X-BAPI-TIMESTAMP": str(timestamp),
+            "X-BAPI-RECV-WINDOW": str(recv_window),
+        }
+
+        return headers
+
+    @staticmethod
+    def get_timestamp():
+        return int(time.time() * 1000)
+
+    @staticmethod
+    def get_payload(method: str, params: dict):
+        def cast_values():
+            string_params = [
+                "qty",
+                "price",
+                "triggerPrice",
+                "takeProfit",
+                "stopLoss",
+            ]
+            integer_params = ["positionIdx"]
+            for key, value in params.items():
+                if key in string_params:
+                    if type(value) != str:
+                        params[key] = str(value)
+                elif key in integer_params:
+                    if type(value) != int:
+                        params[key] = int(value)
+
+        if method == "GET":
+            payload = "&".join([f"{k}={v}" for k, v in sorted(params.items()) if v is not None])
+            return payload
+        else:
+            cast_values()
+            return json.dumps(params)
+
+    def get_signature(self, payload: str, timestamp: int, recv_window: int):
+        param_str = str(timestamp) + self.api_key + str(recv_window) + payload
+
+        hash_str = hmac.new(
+            bytes(self.api_secret, "utf-8"),
+            param_str.encode("utf-8"),
+            hashlib.sha256,
+        )
+        return hash_str.hexdigest()

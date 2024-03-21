@@ -8,8 +8,8 @@ from .utils import sort_dict
 class Bybit(BybitUnified):
     name = "bybit"
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, api_key: str = None, api_secret: str = None, testnet: bool = False):
+        super().__init__(api_key=api_key, api_secret=api_secret, testnet=testnet)
         self.parser = BybitParser()
         self.exchange_info = {}
 
@@ -206,3 +206,8 @@ class Bybit(BybitUnified):
         _symbol = info["raw_data"]["symbol"]
 
         return self.parser.parse_mark_price(await self._get_ticker(symbol=_symbol, category=_category), instrument_id)
+
+    # Private endpoint
+
+    async def get_account_balance(self) -> dict:
+        return await self._get_wallet_balance()

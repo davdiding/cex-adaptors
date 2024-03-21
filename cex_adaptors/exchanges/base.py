@@ -2,7 +2,7 @@ import json
 
 import aiohttp
 
-from .auth import BinanceAuth, OkxAuth
+from .auth import BinanceAuth, BybitAuth, OkxAuth
 
 
 class BaseClient(object):
@@ -29,6 +29,15 @@ class BaseClient(object):
                 headers = auth.get_private_header()
                 kwargs["params"] = auth.update_params(kwargs.get("params", {}))
                 kwargs["headers"] = headers
+
+            elif self.name == "bybit":
+                auth = BybitAuth(**auth_data)
+                headers = auth.get_private_header(method, url, kwargs.get("params", {}))
+                kwargs["headers"] = headers
+
+                if method == "POST":
+                    kwargs["data"] = auth.payload
+                    del kwargs["params"]
 
         if method == "GET":
             async with self._session.get(url, **kwargs) as response:

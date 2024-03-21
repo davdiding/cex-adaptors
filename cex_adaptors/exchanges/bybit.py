@@ -5,9 +5,15 @@ class BybitUnified(BaseClient):
     name = "bybit"
     BASE_ENDPOINT = "https://api.bybit.com"
 
-    def __init__(self):
+    def __init__(self, api_key: str = None, api_secret: str = None, testnet: bool = False):
         super().__init__()
         self.base_endpoint = self.BASE_ENDPOINT
+
+        self.auth_data = {
+            "api_key": api_key,
+            "api_secret": api_secret,
+        }
+        self.testnet = testnet
 
     async def _get_exchange_info(self, category: str) -> dict:
         return await self._get(self.base_endpoint + "/v5/market/instruments-info", params={"category": category})
@@ -84,3 +90,18 @@ class BybitUnified(BaseClient):
         }
 
         return await self._get(self.base_endpoint + "/v5/market/orderbook", params=params)
+
+    # Private endpoint
+    async def _get_wallet_balance(self, accountType: str = "UNIFIED", coin: str = None):
+        params = {
+            k: v
+            for k, v in {
+                "accountType": accountType,
+                "coin": coin,
+            }.items()
+            if v
+        }
+
+        return await self._get(
+            self.base_endpoint + "/v5/account/wallet-balance", params=params, auth_data=self.auth_data
+        )

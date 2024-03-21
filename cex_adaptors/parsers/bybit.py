@@ -21,8 +21,7 @@ class BybitParser(Parser):
         "1w": "W",
     }
 
-    @staticmethod
-    def check_response(response: dict):
+    def check_response(self, response: dict):
         if response["retCode"] != 0:
             raise ValueError(f"Error in parsing Bybit response: {response}")
         else:
@@ -30,6 +29,7 @@ class BybitParser(Parser):
                 "code": 200,
                 "status": "success",
                 "data": response["result"]["list"] if "list" in response["result"] else response["result"],
+                "timestamp": self.parse_str(response["time"], int),
             }
 
     @property
@@ -228,5 +228,35 @@ class BybitParser(Parser):
                 }
                 for bid in bids
             ],
+            "raw_data": datas,
+        }
+
+    def parse_last_price(self, response: dict, instrument_id: str) -> dict:
+        response = self.check_response(response)
+        datas = response["data"][0]
+        return {
+            "timestamp": response["timestamp"],
+            "instrument_id": instrument_id,
+            "last_price": float(datas["lastPrice"]),
+            "raw_data": datas,
+        }
+
+    def parse_index_price(self, response: dict, instrument_id: str) -> dict:
+        response = self.check_response(response)
+        datas = response["data"][0]
+        return {
+            "timestamp": response["timestamp"],
+            "instrument_id": instrument_id,
+            "index_price": float(datas["indexPrice"]),
+            "raw_data": datas,
+        }
+
+    def parse_mark_price(self, response: dict, instrument_id: str) -> dict:
+        response = self.check_response(response)
+        datas = response["data"][0]
+        return {
+            "timestamp": response["timestamp"],
+            "instrument_id": instrument_id,
+            "mark_price": float(datas["markPrice"]),
             "raw_data": datas,
         }

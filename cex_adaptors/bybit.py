@@ -176,3 +176,33 @@ class Bybit(BybitUnified):
 
         params = {"category": _category, "symbol": _symbol, "limit": _depth}
         return self.parser.parse_orderbook(await self._get_orderbook(**params), info)
+
+    async def get_last_price(self, instrument_id: str) -> dict:
+        if instrument_id not in self.exchange_info:
+            raise ValueError(f"{instrument_id} not found in exchange info")
+
+        info = self.exchange_info[instrument_id]
+        _category = self.parser.get_category(info)
+        _symbol = info["raw_data"]["symbol"]
+
+        return self.parser.parse_last_price(await self._get_ticker(symbol=_symbol, category=_category), instrument_id)
+
+    async def get_index_price(self, instrument_id: str) -> dict:
+        if instrument_id not in self.exchange_info:
+            raise ValueError(f"{instrument_id} not found in exchange info")
+
+        info = self.exchange_info[instrument_id]
+        _category = self.parser.get_category(info)
+        _symbol = info["raw_data"]["symbol"]
+
+        return self.parser.parse_index_price(await self._get_ticker(symbol=_symbol, category=_category), instrument_id)
+
+    async def get_mark_price(self, instrument_id: str) -> dict:
+        if instrument_id not in self.exchange_info:
+            raise ValueError(f"{instrument_id} not found in exchange info")
+
+        info = self.exchange_info[instrument_id]
+        _category = self.parser.get_category(info)
+        _symbol = info["raw_data"]["symbol"]
+
+        return self.parser.parse_mark_price(await self._get_ticker(symbol=_symbol, category=_category), instrument_id)

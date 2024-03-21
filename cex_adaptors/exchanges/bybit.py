@@ -67,3 +67,16 @@ class BybitUnified(BaseClient):
         }
 
         return await self._get(self.base_endpoint + "/v5/market/open-interest", params=params)
+
+    async def _get_orderbook(self, category: str, symbol: str, limit: int = None):
+        params = {
+            k: v
+            for k, v in {
+                "category": category,
+                "symbol": symbol,
+                "limit": limit,
+            }.items()
+            if v
+        }
+
+        return await self._get(self.base_endpoint + "/v5/market/orderbook", params=params)

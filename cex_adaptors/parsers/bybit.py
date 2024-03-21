@@ -29,7 +29,7 @@ class BybitParser(Parser):
             return {
                 "code": 200,
                 "status": "success",
-                "data": response["result"]["list"],
+                "data": response["result"]["list"] if "list" in response["result"] else response["result"],
             }
 
     @property
@@ -203,3 +203,30 @@ class BybitParser(Parser):
                 }
             )
         return results[0] if len(results) == 1 else results
+
+    def parse_orderbook(self, response: dict, info: dict) -> dict:
+        response = self.check_response(response)
+        datas = response["data"]
+
+        asks = datas["a"]
+        bids = datas["b"]
+
+        return {
+            "timestamp": self.parse_str(datas["ts"], int),
+            "instrument_id": self.parse_unified_id(info),
+            "asks": [
+                {
+                    "price": self.parse_str(ask[0], float),
+                    "volume": self.parse_str(ask[1], float),
+                }
+                for ask in asks
+            ],
+            "bids": [
+                {
+                    "price": self.parse_str(bid[0], float),
+                    "volume": self.parse_str(bid[1], float),
+                }
+                for bid in bids
+            ],
+            "raw_data": datas,
+        }

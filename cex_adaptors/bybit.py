@@ -158,3 +158,21 @@ class Bybit(BybitUnified):
         params = {"category": _category, "symbol": _symbol, "interval": _interval, "limit": limit}
 
         return self.parser.parse_open_interest(await self._get_open_interest(**params), info)
+
+    async def get_orderbook(self, instrument_id: str, depth: int = 100):
+        if instrument_id not in self.exchange_info:
+            raise ValueError(f"{instrument_id} not found in exchange info")
+
+        order_book_depth_map = {
+            "spot": 200,
+            "linear": 500,
+            "inverse": 500,
+        }
+
+        info = self.exchange_info[instrument_id]
+        _category = self.parser.get_category(info)
+        _symbol = info["raw_data"]["symbol"]
+        _depth = min(depth, order_book_depth_map[_category])
+
+        params = {"category": _category, "symbol": _symbol, "limit": _depth}
+        return self.parser.parse_orderbook(await self._get_orderbook(**params), info)

@@ -21,19 +21,15 @@ class BybitParser(Parser):
         "1w": "W",
     }
 
-    @staticmethod
-    def check_response(response: dict):
+    def check_response(self, response: dict):
         if response["retCode"] != 0:
-            return {
-                "code": 400,
-                "status": "error",
-                "data": response,
-            }
+            raise ValueError(f"Error in parsing Bybit response: {response}")
         else:
             return {
                 "code": 200,
                 "status": "success",
-                "data": response["result"]["list"],
+                "data": response["result"]["list"] if "list" in response["result"] else response["result"],
+                "timestamp": self.parse_str(response["time"], int),
             }
 
     @property
@@ -132,8 +128,6 @@ class BybitParser(Parser):
 
     def parse_klines(self, response: dict) -> dict:
         response = self.check_response(response)
-        if response["code"] != 200:
-            return response
 
         results = {}
         datas = response["data"]
@@ -162,4 +156,107 @@ class BybitParser(Parser):
             "base_volume": float(response[5]),
             "quote_volume": float(response[6]),
             "raw_data": response,
+        }
+
+    def parse_funding_rate(self, response: dict, info: dict) -> list:
+        response = self.check_response(response)
+        datas = response["data"]
+
+        results = []
+        for data in datas:
+            results.append(
+                {
+                    "timestamp": self.parse_str(data["fundingRateTimestamp"], int),
+                    "instrument_id": self.parse_unified_id(info),
+                    "funding_rate": self.parse_str(data["fundingRate"], float),
+                    "raw_data": data,
+                }
+            )
+        return results
+
+    @staticmethod
+    def get_open_interest_interval(interval: str) -> str:
+        interval_map = {
+            "5m": "5min",
+            "15m": "15min",
+            "30m": "30min",
+            "1h": "1h",
+            "4h": "4h",
+            "1d": "1d",
+        }
+        if interval not in interval_map:
+            raise ValueError(f"Invalid interval: {interval}, should be one of {list(interval_map.keys())}")
+        return interval_map[interval]
+
+    def parse_open_interest(self, response: dict, info: dict) -> dict | list:
+        response = self.check_response(response)
+
+        results = []
+        datas = response["data"]
+        for datas in datas:
+            results.append(
+                {
+                    "timestamp": self.parse_str(datas["timestamp"], int),
+                    "instrument_id": self.parse_unified_id(info),
+                    "open_interest": self.parse_str(datas["openInterest"], float),
+                    "raw_data": datas,
+                }
+            )
+        return results[0] if len(results) == 1 else results
+
+    def parse_orderbook(self, response: dict, info: dict) -> dict:
+        response = self.check_response(response)
+        datas = response["data"]
+
+        asks = datas["a"]
+        bids = datas["b"]
+
+        return {
+            "timestamp": self.parse_str(datas["ts"], int),
+            "instrument_id": self.parse_unified_id(info),
+            "asks": [
+                {
+                    "price": self.parse_str(ask[0], float),
+                    "volume": self.parse_str(ask[1], float),
+                }
+                for ask in asks
+            ],
+            "bids": [
+                {
+                    "price": self.parse_str(bid[0], float),
+                    "volume": self.parse_str(bid[1], float),
+                }
+                for bid in bids
+            ],
+            "raw_data": datas,
+        }
+
+    def parse_last_price(self, response: dict, instrument_id: str) -> dict:
+        response = self.check_response(response)
+        datas = response["data"][0]
+        return {
+            "timestamp": response["timestamp"],
+            "instrument_id": instrument_id,
+            "last_price": float(datas["lastPrice"]),
+            "raw_data": datas,
+        }
+
+    def parse_index_price(self, response: dict, instrument_id: str) -> dict:
+        response = self.check_response(response)
+        datas = response["data"][0]
+        return {
+            "timestamp": response["timestamp"],
+            "instrument_id": instrument_id,
+            "index_price": float(datas["indexPrice"]),
+            "raw_data": datas,
+        }
+
+    def parse_mark_price(self, response: dict, instrument_id: str) -> dict:
+        response = self.check_response(response)
+        datas = response["data"][0]
+        return {
+            "timestamp": response["timestamp"],
+            "instrument_id": instrument_id,
+            "mark_price": float(datas["markPrice"]),
+            "raw_data": datas,
         }

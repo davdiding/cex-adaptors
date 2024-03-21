@@ -173,3 +173,33 @@ class BybitParser(Parser):
                 }
             )
         return results
+
+    @staticmethod
+    def get_open_interest_interval(interval: str) -> str:
+        interval_map = {
+            "5m": "5min",
+            "15m": "15min",
+            "30m": "30min",
+            "1h": "1h",
+            "4h": "4h",
+            "1d": "1d",
+        }
+        if interval not in interval_map:
+            raise ValueError(f"Invalid interval: {interval}, should be one of {list(interval_map.keys())}")
+        return interval_map[interval]
+
+    def parse_open_interest(self, response: dict, info: dict) -> dict | list:
+        response = self.check_response(response)
+
+        results = []
+        datas = response["data"]
+        for datas in datas:
+            results.append(
+                {
+                    "timestamp": self.parse_str(datas["timestamp"], int),
+                    "instrument_id": self.parse_unified_id(info),
+                    "open_interest": self.parse_str(datas["openInterest"], float),
+                    "raw_data": datas,
+                }
+            )
+        return results[0] if len(results) == 1 else results

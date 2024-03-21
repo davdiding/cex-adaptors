@@ -145,3 +145,16 @@ class Bybit(BybitUnified):
             return sorted(results, key=lambda x: x["timestamp"], reverse=False)[-num:]
         else:
             raise ValueError("(start, end) or num must be provided")
+
+    async def get_open_interest(self, instrument_id: str, interval: str = "5m"):
+        if instrument_id not in self.exchange_info:
+            raise ValueError(f"{instrument_id} not found in exchange info")
+
+        info = self.exchange_info[instrument_id]
+        _category = self.parser.get_category(info)
+        _symbol = info["raw_data"]["symbol"]
+        _interval = self.parser.get_open_interest_interval(interval)
+        limit = 1
+        params = {"category": _category, "symbol": _symbol, "interval": _interval, "limit": limit}
+
+        return self.parser.parse_open_interest(await self._get_open_interest(**params), info)

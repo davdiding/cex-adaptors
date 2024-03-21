@@ -49,3 +49,21 @@ class BybitUnified(BaseClient):
         }
 
         return await self._get(self.base_endpoint + "/v5/market/funding/history", params=params)
+
+    async def _get_open_interest(
+        self, category: str, symbol: str, interval: str, startTime: int = None, endTime: int = None, limit: int = None
+    ):
+        params = {
+            k: v
+            for k, v in {
+                "category": category,
+                "symbol": symbol,
+                "intervalTime": interval,
+                "start_time": startTime,
+                "end_time": endTime,
+                "limit": limit,
+            }.items()
+            if v
+        }
+
+        return await self._get(self.base_endpoint + "/v5/market/open-interest", params=params)

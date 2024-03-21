@@ -24,11 +24,7 @@ class BybitParser(Parser):
     @staticmethod
     def check_response(response: dict):
         if response["retCode"] != 0:
-            return {
-                "code": 400,
-                "status": "error",
-                "data": response,
-            }
+            raise ValueError(f"Error in parsing Bybit response: {response}")
         else:
             return {
                 "code": 200,
@@ -132,8 +128,6 @@ class BybitParser(Parser):
 
     def parse_klines(self, response: dict) -> dict:
         response = self.check_response(response)
-        if response["code"] != 200:
-            return response
 
         results = {}
         datas = response["data"]
@@ -163,3 +157,19 @@ class BybitParser(Parser):
             "quote_volume": float(response[6]),
             "raw_data": response,
         }
+
+    def parse_funding_rate(self, response: dict, info: dict) -> list:
+        response = self.check_response(response)
+        datas = response["data"]
+
+        results = []
+        for data in datas:
+            results.append(
+                {
+                    "timestamp": self.parse_str(data["fundingRateTimestamp"], int),
+                    "instrument_id": self.parse_unified_id(info),
+                    "funding_rate": self.parse_str(data["fundingRate"], float),
+                    "raw_data": data,
+                }
+            )
+        return results

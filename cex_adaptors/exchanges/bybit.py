@@ -2,6 +2,7 @@ from .base import BaseClient
 
 
 class BybitUnified(BaseClient):
+    name = "bybit"
     BASE_ENDPOINT = "https://api.bybit.com"
 
     def __init__(self):
@@ -31,3 +32,20 @@ class BybitUnified(BaseClient):
         }
 
         return await self._get(self.base_endpoint + "/v5/market/kline", params=params)
+
+    async def _get_funding_rate(
+        self, category: str, symbol: str, startTime: int = None, endTime: int = None, limit: int = None
+    ):
+        params = {
+            k: v
+            for k, v in {
+                "category": category,
+                "symbol": symbol,
+                "start_time": startTime,
+                "end_time": endTime,
+                "limit": limit,
+            }.items()
+            if v is not None
+        }
+
+        return await self._get(self.base_endpoint + "/v5/market/funding/history", params=params)

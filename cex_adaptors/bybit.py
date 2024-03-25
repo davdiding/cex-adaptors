@@ -209,5 +209,83 @@ class Bybit(BybitUnified):
 
     # Private endpoint
 
-    async def get_account_balance(self) -> dict:
-        return await self._get_wallet_balance()
+    async def get_balance(self, account_type: str = "unified", currency: str = None) -> dict:
+
+        params = {
+            k: v
+            for k, v in {
+                "accountType": account_type.upper(),
+                "coin": currency,
+            }.items()
+            if v
+        }
+        return self.parser.parse_balance(await self._get_wallet_balance(**params), infos=self.exchange_info)
+
+    async def get_positions(self) -> dict:
+
+        results = {}
+        for _category in ["linear", "inverse"]:
+            params = {"category": _category, "limit": 200}
+            result = self.parser.parse_positions(
+                await self._get_position_info(**params), infos=self.exchange_info, category=_category
+            )
+            results.update(result)
+
+        return results
+
+    async def place_market_order(self, instrument_id: str, volume: float, side: str, in_quote: bool = False) -> dict:
+        if instrument_id not in self.exchange_info:
+            raise ValueError(f"{instrument_id} not found in exchange info")
+
+        info = self.exchange_info[instrument_id]
+        _category = self.parser.get_category(info)
+        _symbol = info["raw_data"]["symbol"]
+
+        order_ids = self.parser.parse_order_ids(
+            await self._place_order(
+                _category,
+                _symbol,
+                side.upper(),
+                "Market",
+                str(volume),
+                marketUnit="quoteCoin" if in_quote else "baseCoin",
+            )
+        )
+
+        return self.parser.parse_place_order_info(
+            await self._get_history_order(category=_category, orderId=order_ids["order_id"]), info
+        )
+
+    async def place_limit_order(
+        self, instrument_id: str, price: float, volume: float, side: str, in_quote: bool = False
+    ) -> dict:
+        if instrument_id not in self.exchange_info:
+            raise ValueError(f"{instrument_id} not found in exchange info")
+
+        info = self.exchange_info[instrument_id]
+        _category = self.parser.get_category(info)
+        _symbol = info["raw_data"]["symbol"]
+
+        order_ids = self.parser.parse_order_ids(
+            await self._place_order(
+                category=_category,
+                symbol=_symbol,
+                side=side.upper(),
+                orderType="Limit",
+                qty=str(volume),
+                price=str(price),
+                marketUnit="quoteCoin" if in_quote else "baseCoin",
+            )
+        )
+
+        order = self.parser.parse_place_order_info(
+            await self._get_history_order(category=_category, orderId=order_ids["order_id"]), info
+        )
+
+        return (
+            self.parser.parse_opened_order(
+                await self._get_opened_order(category=_category, orderId=order_ids["order_id"]), info
+            )
+            if not order
+            else order
+        )

@@ -21,6 +21,15 @@ class BybitParser(Parser):
         "1w": "W",
     }
 
+    order_status_map = {
+        "New": "open",
+    }
+
+    market_unit_map = {
+        "baseCoin": "base",
+        "quoteCoin": "quote",
+    }
+
     def check_response(self, response: dict):
         if response["retCode"] != 0:
             raise ValueError(f"Error in parsing Bybit response: {response}")
@@ -260,3 +269,128 @@ class BybitParser(Parser):
             "mark_price": float(datas["markPrice"]),
             "raw_data": datas,
         }
+
+    def parse_balance(self, response: dict, infos: dict) -> dict:
+        response = self.check_response(response)
+        datas = response["data"][0]
+
+        results = {}
+        for data in datas["coin"]:
+            currency = data["coin"]
+            results[currency] = {
+                "balance": self.parse_str(data["walletBalance"], float),
+                "available": self.parse_str(data["equity"], float),
+                "raw_data": data,
+            }
+        return results
+
+    def parse_positions(self, response: dict, infos: dict, category: str) -> dict:
+        response = self.check_response(response)
+
+        return
+
+    def parse_order_ids(self, response: dict) -> dict:
+        response = self.check_response(response)
+        return {
+            "order_id": response["data"]["orderId"],
+            "order_link_id": response["data"]["orderLinkId"],
+        }
+
+    def parse_place_order_info(self, response: dict, info: dict) -> dict:
+        """
+        Response example:
+        1. market_order: {
+            'symbol': 'ETHUSDT',
+            'orderType': 'Market',
+            'orderLinkId': '1649319454464803329',
+            'slLimitPrice': '0',
+            'orderId': '1649319454464803328',
+            'cancelType': 'UNKNOWN',
+            'avgPrice': '2590.66',
+            'stopOrderType': '',
+            'lastPriceOnCreated': '',
+            'orderStatus': 'Filled',
+            'takeProfit': '0',
+            'cumExecValue': '2590.6662916',
+            'smpType': 'None',
+            'triggerDirection': 0,
+            'blockTradeId': '',
+            'rejectReason': 'EC_NoError',
+            'isLeverage': '0',
+            'price': '0',
+            'orderIv': '',
+            'createdTime': '1711350200408',
+            'tpTriggerBy': '',
+            'positionIdx': 0,
+            'trailingPercentage': '0',
+            'timeInForce': 'IOC',
+            'leavesValue': '247.3337084',
+            'basePrice': '2580',
+            'updatedTime': '1711350200412',
+            'side': 'Buy',
+            'smpGroup': 0,
+            'triggerPrice': '0.00',
+            'tpLimitPrice': '0',
+            'trailingValue': '0',
+            'cumExecFee': '0.0008',
+            'slTriggerBy': '',
+            'leavesQty': '0.00000',
+            'closeOnTrigger': False,
+            'placeType': '',
+            'cumExecQty': '1.00000',
+            'reduceOnly': False,
+            'activationPrice': '0',
+            'qty': '1.00000',
+            'stopLoss': '0',
+            'marketUnit': 'baseCoin',
+            'smpOrderId': '',
+            'triggerBy': ''
+        }
+        """
+
+        response = self.check_response(response)
+
+        if len(response["data"]) == 0:
+            return {}
+
+        data = response["data"][0]
+        return {
+            "timestamp": int(data["createdTime"]),
+            "instrument_id": self.parse_unified_id(info),
+            "side": str(data["side"].lower()),
+            "price": self.parse_str(data["price"], float) if data["price"] != "0" else None,
+            "volume": self.parse_str(data["qty"], float),
+            "volume_type": self.parse_market_unit(data["marketUnit"]),
+            "fee_ccy": None,
+            "fee": self.parse_str(data["cumExecFee"], float),
+            "order_id": str(data["orderId"]),
+            "order_type": str(data["orderType"].lower()),
+            "status": str(data["orderStatus"]),
+            "raw_data": data,
+        }
+
+    def parse_opened_order(self, response: dict, info: dict) -> dict:
+        response = self.check_response(response)
+
+        data = response["data"][0]
+
+        return {
+            "timestamp": int(data["createdTime"]),
+            "instrument_id": self.parse_unified_id(info),
+            "side": str(data["side"].lower()),
+            "price": self.parse_str(data["price"], float),
+            "volume": self.parse_str(data["qty"], float),
+            "volume_type": self.parse_market_unit(data["marketUnit"]),
+            "fee_ccy": None,
+            "fee": None,
+            "order_id": str(data["orderId"]),
+            "order_type": str(data["orderType"].lower()),
+            "status": self.order_status_map.get(str(data["orderStatus"]), None),
+            "raw_data": data,
+        }
+
+    def parse_market_unit(self, market_unit: str) -> str:
+        if not market_unit:
+            return "base"
+        else:
+            return self.market_unit_map.get(market_unit, market_unit)

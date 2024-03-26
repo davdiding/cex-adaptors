@@ -184,6 +184,9 @@ class BinanceParser(Parser):
 
         results = {}
         for data in datas:
+            if data["netAsset"] == "0":
+                continue
+
             result = {
                 "currency": data["asset"],
                 "balance": self.parse_str(data["netAsset"], float),

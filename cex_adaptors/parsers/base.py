@@ -16,7 +16,7 @@ class Parser:
         "futures",
         "delivery",
     ]
-    PERPETUAL_TYPES = ["SWAP", "LinearPerpetual", "InversePerpetual", "PERPETUAL", "swap", "perpetual"]
+    PERPETUAL_TYPES = ["SWAP", "LinearPerpetual", "InversePerpetual", "PERPETUAL", "swap", "perpetual", "PERP"]
     LINEAR_TYPES = ["LinearFutures", "LinearPerpetual", "linear"]
     INVERSE_TYPES = ["InverseFutures", "InversePerpetual", "inverse"]
     STABLE_CURRENCY = ["USDT", "USDC"]

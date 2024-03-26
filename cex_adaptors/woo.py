@@ -7,5 +7,10 @@ class WOO(WOOUnified, WOOParser):
         super().__init__()
         self.exchange_info = {}
 
+    async def sync_exchange_info(self):
+        self.exchange_info = await self.get_exchange_info()
+
     async def get_exchange_info(self) -> dict:
-        return self.parse_exchange_info(await self._get_available_symbols())
+        self.exchange_info = await self._get_available_symbols()
+
+        return self.exchange_info

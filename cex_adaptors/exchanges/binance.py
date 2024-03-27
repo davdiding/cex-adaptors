@@ -43,6 +43,9 @@ class BinanceSpot(BaseClient):
     async def _get_account_info(self):
         return await self._get(self.base_endpoint + "/api/v3/account", auth_data=self.auth_data)
 
+    async def _get_margin_account_info(self):
+        return await self._get(self.base_endpoint + "/sapi/v1/margin/account", auth_data=self.auth_data)
+
 
 class BinanceLinear(BaseClient):
     BASE_ENDPOINT = "https://fapi.binance.com"

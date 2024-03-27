@@ -127,3 +127,28 @@ class Binance(object):
     # Private function
     async def get_spot_account_info(self) -> dict:
         return self.parser.parse_spot_account_info(await self.spot._get_account_info())
+
+    async def get_margin_account_info(self) -> dict:
+        return self.parser.parse_margin_account_info(await self.spot._get_margin_account_info())
+
+    async def get_margin_balance(self, currency: str = None) -> dict:
+        return self.parser.parse_margin_balance(await self.spot._get_margin_account_info(), currency=currency)
+
+    async def get_margin_account_value(self, in_currency: str = None):
+        info = await self.get_margin_account_info()
+
+        net_btc_value = self.parser.parse_str(info["raw_data"]["totalNetAssetOfBtc"], float)
+
+        instrument_id = "BTC/USDT:USDT"
+        ticker = await self.get_ticker(instrument_id)
+        btc_price = ticker[instrument_id]["last_price"]
+
+        if in_currency:
+            instrument_id = f"{in_currency}/USDT:USDT"
+            ccy_ticker = await self.get_ticker(instrument_id)
+            ccy_price = ccy_ticker[instrument_id]["last_price"]
+
+            return net_btc_value * btc_price / ccy_price
+
+        else:
+            return net_btc_value * btc_price

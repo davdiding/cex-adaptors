@@ -171,6 +171,32 @@ class BinanceParser(Parser):
             "raw_data": data,
         }
 
+    def parse_margin_account_info(self, response: dict) -> dict:
+        response = self.check_response(response)
+
+        data = response["data"]
+        return {"raw_data": data}
+
+    def parse_margin_balance(self, response: dict, currency: str = None) -> dict:
+        response = self.check_response(response)
+        datas = response["data"]["userAssets"]
+        query_currency = currency
+
+        results = {}
+        for data in datas:
+            if data["netAsset"] == "0":
+                continue
+
+            result = {
+                "currency": data["asset"],
+                "balance": self.parse_str(data["netAsset"], float),
+                "available": self.parse_str(data["free"], float),
+                "raw_data": data,
+            }
+            currency = result["currency"]
+            results[currency] = result
+        return results if not query_currency else {query_currency: results[query_currency]}
+
     def get_symbol(self, info: dict) -> str:
         return f'{info["base"]}{info["quote"]}'
 

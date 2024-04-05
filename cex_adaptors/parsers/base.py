@@ -58,6 +58,16 @@ class Parser:
     def parse_unified_symbol(self, base: str, quote: str) -> str:
         return f"{base}/{quote}"
 
+    def parse_unified_market_type(self, info: dict) -> str:
+        if info["is_spot"]:
+            return "spot"
+        elif info["is_futures"]:
+            return "futures"
+        elif info["is_perp"]:
+            return "perp"
+        else:
+            return "unknown"
+
     def parse_base_currency(self, base: str) -> str:
         for i in self.MULTIPLIER:
             if i in base:

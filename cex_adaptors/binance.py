@@ -124,6 +124,68 @@ class Binance(object):
 
             return sort_dict(results, ascending=True, num=num)
 
+    async def get_history_funding_rate(
+        self, instrument_id: str, start: int = None, end: int = None, num: int = 30
+    ) -> list:
+        if instrument_id not in self.exchange_info:
+            raise ValueError(f"{instrument_id} not found in exchange info")
+
+        info = self.exchange_info[instrument_id]
+        market_type = self.parser.get_market_type(info)
+        limit = 1000
+        symbol = info["raw_data"]["symbol"]
+
+        method_map = {
+            "linear": self.linear._get_funding_rate_history,
+            "inverse": self.inverse._get_funding_rate_history,
+        }
+
+        params = {
+            "symbol": symbol,
+            "limit": limit,
+        }
+
+        results = []
+        query_end = None
+        if start and end:
+            query_start = start - 1
+            query_end = end + 1
+            while True:
+                params.update({"startTime": query_start, "endTime": query_end})
+                result = self.parser.parse_history_funding_rate(await method_map[market_type](**params), info)
+                results.extend(result)
+                results = list({v["timestamp"]: v for v in results}.values())
+
+                if len(result) < limit:
+                    break
+
+                query_start = max([v["timestamp"] for v in result]) - 1
+
+                if query_start < end:
+                    break
+
+                continue
+            return sorted(
+                [v for v in results if end >= v["timestamp"] >= start], key=lambda x: x["timestamp"], reverse=False
+            )
+
+        elif num:
+            while True:
+                params.update({"endTime": query_end} if query_end else {})
+                result = self.parser.parse_history_funding_rate(await method_map[market_type](**params), info)
+                results.extend(result)
+
+                # exclude the datas with same timestamp
+                results = list({v["timestamp"]: v for v in results}.values())
+
+                if len(result) < limit or len(results) >= num:
+                    break
+                query_end = min([v["timestamp"] for v in result]) + 1
+                continue
+            return sorted(results, key=lambda x: x["timestamp"], reverse=False)[-num:]
+        else:
+            raise ValueError("(start, end) or num must be provided")
+
     # Private function
     async def get_spot_account_info(self) -> dict:
         return self.parser.parse_spot_account_info(await self.spot._get_account_info())

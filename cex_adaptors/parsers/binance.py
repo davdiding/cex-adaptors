@@ -197,6 +197,23 @@ class BinanceParser(Parser):
             results[currency] = result
         return results if not query_currency else {query_currency: results[query_currency]}
 
+    def parse_history_funding_rate(self, response: dict, info: dict) -> list:
+        response = self.check_response(response)
+        datas = response["data"]
+
+        results = []
+        for data in datas:
+            result = {
+                "timestamp": self.parse_str(data["fundingTime"], int),
+                "instrument_id": self.parse_unified_id(info),
+                "market": self.parse_unified_market_type(info),
+                "funding_rate": self.parse_str(data["fundingRate"], float),
+                "realized_rate": None,
+                "raw_data": data,
+            }
+            results.append(result)
+        return results
+
     def get_symbol(self, info: dict) -> str:
         return f'{info["base"]}{info["quote"]}'
 

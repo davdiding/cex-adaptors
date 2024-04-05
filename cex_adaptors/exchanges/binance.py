@@ -73,6 +73,21 @@ class BinanceLinear(BaseClient):
             params["endTime"] = endTime
         return await self._get(self.linear_base_endpoint + "/fapi/v1/klines", params=params)
 
+    async def _get_funding_rate_history(
+        self, symbol: str, startTime: int = None, endTime: int = None, limit: int = 1000
+    ):
+        params = {
+            k: v
+            for k, v in {
+                "symbol": symbol,
+                "startTime": startTime,
+                "endTime": endTime,
+                "limit": limit,
+            }.items()
+            if v
+        }
+        return await self._get(self.linear_base_endpoint + "/fapi/v1/fundingRate", params=params)
+
 
 class BinanceInverse(BaseClient):
     BASE_ENDPOINT = "https://dapi.binance.com"
@@ -99,3 +114,18 @@ class BinanceInverse(BaseClient):
         if endTime:
             params["endTime"] = endTime
         return await self._get(self.inverse_base_endpoint + "/dapi/v1/klines", params=params)
+
+    async def _get_funding_rate_history(
+        self, symbol: str, startTime: int = None, endTime: int = None, limit: int = 1000
+    ):
+        params = {
+            k: v
+            for k, v in {
+                "symbol": symbol,
+                "startTime": startTime,
+                "endTime": endTime,
+                "limit": limit,
+            }.items()
+            if v
+        }
+        return await self._get(self.inverse_base_endpoint + "/dapi/v1/fundingRate", params=params)

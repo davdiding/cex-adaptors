@@ -39,6 +39,14 @@ class BinanceSpot(BaseClient):
             params["endTime"] = endTime
         return await self._get(self.base_endpoint + "/api/v3/klines", params=params)
 
+    async def _get_orderbook(self, symbol: str, limit: int = 5000):
+        params = {k: v for k, v in {"symbol": symbol, "limit": limit}.items() if v}
+        return await self._get(self.base_endpoint + "/api/v3/depth", params=params)
+
+    async def _get_recent_trades_list(self, symbol: str, limit: int = 500):
+        params = {k: v for k, v in {"symbol": symbol, "limit": limit}.items() if v}
+        return await self._get(self.base_endpoint + "/api/v3/trades", params=params)
+
     # Private endpoint
     async def _get_account_info(self):
         return await self._get(self.base_endpoint + "/api/v3/account", auth_data=self.auth_data)

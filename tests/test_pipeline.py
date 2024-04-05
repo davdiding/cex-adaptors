@@ -42,8 +42,6 @@ class TestOkx(IsolatedAsyncioTestCase):
         perp = await self.okx.get_ticker("BTC/USDT:USDT-PERP")
         self.assertTrue(perp)
 
-        futures = await self.okx.get_ticker("BTC/USD:BTC-240329")
-        self.assertTrue(futures)
         return
 
     async def test_get_klines(self):
@@ -53,8 +51,6 @@ class TestOkx(IsolatedAsyncioTestCase):
         perp = await self.okx.get_klines("BTC/USDT:USDT-PERP", "1d", num=77)
         self.assertEqual(len(perp), 77)
 
-        futures = await self.okx.get_klines("BTC/USD:BTC-240329", "1d", num=23)
-        self.assertEqual(len(futures), 23)
         return
 
     async def test_get_klines_with_timestamp(self):
@@ -67,8 +63,6 @@ class TestOkx(IsolatedAsyncioTestCase):
         perp = await self.okx.get_klines("BTC/USDT:USDT-PERP", "1d", start=start, end=end)
         self.assertEqual(len(perp), 30)
 
-        futures = await self.okx.get_klines("BTC/USD:BTC-240329", "1d", start=start, end=end)
-        self.assertEqual(len(futures), 30)
         return
 
     async def test_get_current_funding_rate(self):

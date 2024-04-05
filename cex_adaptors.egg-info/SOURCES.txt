@@ -11,6 +11,7 @@ cex_adaptors/htx.py
 cex_adaptors/kucoin.py
 cex_adaptors/okx.py
 cex_adaptors/utils.py
+cex_adaptors/woo.py
 cex_adaptors.egg-info/PKG-INFO
 cex_adaptors.egg-info/SOURCES.txt
 cex_adaptors.egg-info/dependency_links.txt
@@ -27,6 +28,7 @@ cex_adaptors/exchanges/gateio.py
 cex_adaptors/exchanges/htx.py
 cex_adaptors/exchanges/kucoin.py
 cex_adaptors/exchanges/okx.py
+cex_adaptors/exchanges/woo.py
 cex_adaptors/parsers/__init__.py
 cex_adaptors/parsers/base.py
 cex_adaptors/parsers/binance.py
@@ -37,3 +39,4 @@ cex_adaptors/parsers/gateio.py
 cex_adaptors/parsers/htx.py
 cex_adaptors/parsers/kucoin.py
 cex_adaptors/parsers/okx.py
+cex_adaptors/parsers/woo.py

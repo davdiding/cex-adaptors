@@ -214,6 +214,16 @@ class BinanceParser(Parser):
             results.append(result)
         return results
 
+    def parse_last_price(self, response: dict, instrument_id: str) -> dict:
+        response = self.check_response(response)
+        data = response["data"][instrument_id]
+
+        return {
+            "timestamp": data["close_time"],
+            "instrument_id": instrument_id,
+            "last_price": self.parse_str(data["last_price"], float),
+        }
+
     def get_symbol(self, info: dict) -> str:
         return f'{info["base"]}{info["quote"]}'
 

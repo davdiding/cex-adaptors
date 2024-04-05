@@ -186,6 +186,13 @@ class Binance(object):
         else:
             raise ValueError("(start, end) or num must be provided")
 
+    async def get_last_price(self, instrument_id: str) -> dict:
+        # use ticker to get last price
+        if instrument_id not in self.exchange_info:
+            raise ValueError(f"{instrument_id} not found in exchange info")
+
+        return self.parser.parse_last_price(await self.get_ticker(instrument_id), instrument_id)
+
     # Private function
     async def get_spot_account_info(self) -> dict:
         return self.parser.parse_spot_account_info(await self.spot._get_account_info())

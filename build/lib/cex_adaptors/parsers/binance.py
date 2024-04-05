@@ -171,6 +171,49 @@ class BinanceParser(Parser):
             "raw_data": data,
         }
 
+    def parse_margin_account_info(self, response: dict) -> dict:
+        response = self.check_response(response)
+
+        data = response["data"]
+        return {"raw_data": data}
+
+    def parse_margin_balance(self, response: dict, currency: str = None) -> dict:
+        response = self.check_response(response)
+        datas = response["data"]["userAssets"]
+        query_currency = currency
+
+        results = {}
+        for data in datas:
+            if data["netAsset"] == "0":
+                continue
+
+            result = {
+                "currency": data["asset"],
+                "balance": self.parse_str(data["netAsset"], float),
+                "available": self.parse_str(data["free"], float),
+                "raw_data": data,
+            }
+            currency = result["currency"]
+            results[currency] = result
+        return results if not query_currency else {query_currency: results[query_currency]}
+
+    def parse_history_funding_rate(self, response: dict, info: dict) -> list:
+        response = self.check_response(response)
+        datas = response["data"]
+
+        results = []
+        for data in datas:
+            result = {
+                "timestamp": self.parse_str(data["fundingTime"], int),
+                "instrument_id": self.parse_unified_id(info),
+                "market": self.parse_unified_market_type(info),
+                "funding_rate": self.parse_str(data["fundingRate"], float),
+                "realized_rate": None,
+                "raw_data": data,
+            }
+            results.append(result)
+        return results
+
     def get_symbol(self, info: dict) -> str:
         return f'{info["base"]}{info["quote"]}'
 

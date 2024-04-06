@@ -222,6 +222,43 @@ class BinanceParser(Parser):
             "timestamp": data["close_time"],
             "instrument_id": instrument_id,
             "last_price": self.parse_str(data["last_price"], float),
+            "raw_data": data,
+        }
+
+    def parse_index_price(self, response: dict, info: dict, market_type: str) -> dict:
+        response = self.check_response(response)
+        data = response["data"]
+
+        if not isinstance(data, dict):
+            data = data[0]
+
+        if market_type == "spot":
+            return {
+                "timestamp": self.parse_str(data["calcTime"], int),
+                "instrument_id": self.parse_unified_id(info),
+                "index_price": self.parse_str(data["price"], float),
+                "raw_data": data,
+            }
+        else:  # linear, inverse
+            return {
+                "timestamp": self.parse_str(data["time"], int),
+                "instrument_id": self.parse_unified_id(info),
+                "index_price": self.parse_str(data["indexPrice"], float),
+                "raw_data": data,
+            }
+
+    def parse_mark_price(self, response: dict, info: dict, market_type: str) -> dict:
+        response = self.check_response(response)
+        data = response["data"]
+
+        if not isinstance(data, dict):
+            data = data[0]
+
+        return {
+            "timestamp": self.parse_str(data["time"], int),
+            "instrument_id": self.parse_unified_id(info),
+            "mark_price": self.parse_str(data["markPrice"], float),
+            "raw_data": data,
         }
 
     def get_symbol(self, info: dict) -> str:

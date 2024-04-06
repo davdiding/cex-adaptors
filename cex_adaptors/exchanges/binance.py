@@ -43,6 +43,12 @@ class BinanceSpot(BaseClient):
         params = {k: v for k, v in {"symbol": symbol, "limit": limit}.items() if v}
         return await self._get(self.base_endpoint + "/api/v3/depth", params=params)
 
+    async def _get_margin_price_index(self, symbol: str):
+        params = {"symbol": symbol}
+        return await self._get(
+            self.base_endpoint + "/sapi/v1/margin/priceIndex", params=params, auth_data=self.auth_data
+        )
+
     async def _get_recent_trades_list(self, symbol: str, limit: int = 500):
         params = {k: v for k, v in {"symbol": symbol, "limit": limit}.items() if v}
         return await self._get(self.base_endpoint + "/api/v3/trades", params=params)
@@ -96,6 +102,10 @@ class BinanceLinear(BaseClient):
         }
         return await self._get(self.linear_base_endpoint + "/fapi/v1/fundingRate", params=params)
 
+    async def _get_mark_price(self, symbol: str):
+        params = {"symbol": symbol}
+        return await self._get(self.linear_base_endpoint + "/fapi/v1/premiumIndex", params=params)
+
 
 class BinanceInverse(BaseClient):
     BASE_ENDPOINT = "https://dapi.binance.com"
@@ -137,3 +147,14 @@ class BinanceInverse(BaseClient):
             if v
         }
         return await self._get(self.inverse_base_endpoint + "/dapi/v1/fundingRate", params=params)
+
+    async def get_mark_index_price(self, symbol: str = None, pair: str = None):
+        params = {
+            k: v
+            for k, v in {
+                "symbol": symbol,
+                "pair": pair,
+            }.items()
+            if v
+        }
+        return await self._get(self.inverse_base_endpoint + "/dapi/v1/premiumIndex", params=params)

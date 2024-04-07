@@ -57,3 +57,7 @@ class BitgetUnified(BaseClient):
         if limit:
             params["limit"] = limit
         return await self._get(self.base_endpoint + "/api/v2/mix/market/candles", params=params)
+
+    async def _get_derivative_mark_index_price(self, symbol: str, productType: str):
+        params = {"symbol": symbol, "productType": productType}
+        return await self._get(self.base_endpoint + "/api/v2/mix/market/symbol-price", params=params)

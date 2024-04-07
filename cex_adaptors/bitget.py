@@ -105,6 +105,41 @@ class Bitget(BitgetUnified):
         params = {"symbol": _symbol} if market_type == "spot" else {"symbol": _symbol, "productType": product_type}
         return self.parser.parse_raw_ticker(await method_map[market_type](**params), info, market_type)
 
+    async def get_last_price(self, instrument_id: str) -> dict:
+        ticker = await self.get_ticker(instrument_id)
+        return {
+            "timestamp": ticker["timestamp"],
+            "instrument_id": instrument_id,
+            "last_price": ticker["last"],
+            "raw_data": ticker["raw_data"],
+        }
+
+    async def get_index_price(self, instrument_id: str) -> dict:
+        if instrument_id not in self.exchange_info:
+            raise f"{instrument_id} not found in {self.name} exchange info"
+
+        info = self.exchange_info[instrument_id]
+        if info["is_spot"]:
+            raise ValueError(f"{instrument_id} is not a derivative instrument")
+        product_type = self.parser.get_product_type(info)
+        _symbol = info["raw_data"]["symbol"]
+        return self.parser.parse_mark_index_price(
+            await self._get_derivative_mark_index_price(_symbol, product_type), info, "index"
+        )
+
+    async def get_mark_price(self, instrument_id: str) -> dict:
+        if instrument_id not in self.exchange_info:
+            raise f"{instrument_id} not found in {self.name} exchange info"
+
+        info = self.exchange_info[instrument_id]
+        if info["is_spot"]:
+            raise ValueError(f"{instrument_id} is not a derivative instrument")
+        product_type = self.parser.get_product_type(info)
+        _symbol = info["raw_data"]["symbol"]
+        return self.parser.parse_mark_index_price(
+            await self._get_derivative_mark_index_price(_symbol, product_type), info, "mark"
+        )
+
     async def get_klines(
         self, instrument_id: str, interval: str, start: int = None, end: int = None, num: int = None
     ) -> dict:

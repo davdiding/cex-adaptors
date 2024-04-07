@@ -123,7 +123,7 @@ class BitgetParser(Parser):
             "open": self.parse_str(response["open" if market_type == "spot" else "open24h"], float),
             "high": self.parse_str(response["high24h"], float),
             "low": self.parse_str(response["low24h"], float),
-            "last_price": self.parse_str(response["lastPr"], float),
+            "last": self.parse_str(response["lastPr"], float),
             "base_volume": self.parse_str(response["baseVolume"], float),
             "quote_volume": self.parse_str(response["quoteVolume"], float),
             "price_change": None,  # API not support
@@ -150,6 +150,17 @@ class BitgetParser(Parser):
             instrument_id = id_map[data["symbol"]]
             results[instrument_id] = self.parse_ticker(data, exchange_info[instrument_id], market_type)
         return results
+
+    def parse_mark_index_price(self, response: dict, info: dict, query_type: str) -> dict:
+        response = self.check_response(response)
+        data = response["data"][0]
+
+        return {
+            "timestamp": self.parse_str(data["ts"], int),
+            "instrument_id": self.parse_unified_id(info),
+            "index_price": self.parse_str(data["indexPrice" if query_type == "index" else "markPrice"], float),
+            "raw_data": data,
+        }
 
     @staticmethod
     def get_market_type(response: dict) -> str:

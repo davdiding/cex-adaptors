@@ -287,6 +287,34 @@ class TestBitget(IsolatedAsyncioTestCase):
         self.assertTrue(tickers)
         return
 
+    async def test_get_last_price(self):
+        spot = "BTC/USDT:USDT"
+        perp = "BTC/USDT:USDT-PERP"
+        future = [k for k in self.bitget.exchange_info if self.bitget.exchange_info[k]["is_futures"]][0]
+
+        for i in [spot, perp, future]:
+            last_price = await self.bitget.get_last_price(i)
+            self.assertTrue(last_price)
+        return
+
+    async def test_get_index_price(self):
+        perp = "BTC/USDT:USDT-PERP"
+        future = [k for k in self.bitget.exchange_info if self.bitget.exchange_info[k]["is_futures"]][0]
+
+        for i in [perp, future]:
+            mark_price = await self.bitget.get_index_price(i)
+            self.assertTrue(mark_price)
+        return
+
+    async def test_get_mark_price(self):
+        perp = "BTC/USDT:USDT-PERP"
+        future = [k for k in self.bitget.exchange_info if self.bitget.exchange_info[k]["is_futures"]][0]
+
+        for i in [perp, future]:
+            mark_price = await self.bitget.get_mark_price(i)
+            self.assertTrue(mark_price)
+        return
+
 
 class TestBybit(IsolatedAsyncioTestCase):
     async def asyncSetUp(self):

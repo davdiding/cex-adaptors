@@ -5,6 +5,7 @@ from unittest import IsolatedAsyncioTestCase
 from dotenv import load_dotenv
 
 from cex_adaptors.binance import Binance
+from cex_adaptors.bitget import Bitget
 from cex_adaptors.bybit import Bybit
 from cex_adaptors.kucoin import Kucoin
 from cex_adaptors.okx import Okx
@@ -251,6 +252,39 @@ class TestKucoin(IsolatedAsyncioTestCase):
 
         self.assertEqual(len(orderbook["asks"]), depth)
         self.assertEqual(len(orderbook["bids"]), depth)
+        return
+
+
+class TestBitget(IsolatedAsyncioTestCase):
+    async def asyncSetUp(self):
+        self.bitget = Bitget()
+        await self.bitget.sync_exchange_info()
+
+    async def asyncTearDown(self):
+        await self.bitget.close()
+
+    async def test_get_ticker(self):
+        spot = "BTC/USDT:USDT"
+        perp = "BTC/USDT:USDT-PERP"
+        future = [k for k in self.bitget.exchange_info if self.bitget.exchange_info[k]["is_futures"]][0]
+
+        for i in [spot, perp, future]:
+            ticker = await self.bitget.get_ticker(i)
+            self.assertTrue(ticker)
+        return
+
+    async def test_get_tickers(self):
+        spot = await self.bitget.get_tickers("spot")
+        self.assertTrue(spot)
+
+        perp = await self.bitget.get_tickers("perp")
+        self.assertTrue(perp)
+
+        future = await self.bitget.get_tickers("futures")
+        self.assertTrue(future)
+
+        tickers = await self.bitget.get_tickers()
+        self.assertTrue(tickers)
         return
 
 

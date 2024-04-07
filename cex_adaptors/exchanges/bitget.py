@@ -15,12 +15,17 @@ class BitgetUnified(BaseClient):
         params = {"productType": product_type}
         return await self._get(self.base_endpoint + "/api/v2/mix/market/contracts", params=params)
 
-    async def _get_spot_tickers(self):
-        return await self._get(self.base_endpoint + "/api/v2/spot/market/tickers")
+    async def _get_spot_tickers(self, symbol: str = None):
+        params = {k: v for k, v in {"symbol": symbol}.items() if v}
+        return await self._get(self.base_endpoint + "/api/v2/spot/market/tickers", params=params)
 
-    async def _get_derivative_tickers(self, product_type: str):
-        params = {"productType": product_type}
+    async def _get_derivative_tickers(self, productType: str):
+        params = {"productType": productType}
         return await self._get(self.base_endpoint + "/api/v2/mix/market/tickers", params=params)
+
+    async def _get_derivative_ticker(self, symbol: str, productType: str):
+        params = {"symbol": symbol, "productType": productType}
+        return await self._get(self.base_endpoint + "/api/v2/mix/market/ticker", params=params)
 
     async def _get_spot_candlesticks(
         self, symbol: str, granularity: str, startTime: str = None, endTime: str = None, limit: str = None

@@ -24,7 +24,7 @@ class Parser:
 
     @staticmethod
     def parse_str(data: str, method: callable):
-        if not data:
+        if data is None:
             return None
         return method(data)
 

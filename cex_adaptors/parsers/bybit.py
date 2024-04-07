@@ -215,17 +215,11 @@ class BybitParser(Parser):
             "timestamp": self.parse_str(datas["ts"], int),
             "instrument_id": self.parse_unified_id(info),
             "asks": [
-                {
-                    "price": self.parse_str(ask[0], float),
-                    "volume": self.parse_str(ask[1], float),
-                }
+                {"price": self.parse_str(ask[0], float), "volume": self.parse_str(ask[1], float), "order_number": None}
                 for ask in asks
             ],
             "bids": [
-                {
-                    "price": self.parse_str(bid[0], float),
-                    "volume": self.parse_str(bid[1], float),
-                }
+                {"price": self.parse_str(bid[0], float), "volume": self.parse_str(bid[1], float), "order_number": None}
                 for bid in bids
             ],
             "raw_data": datas,

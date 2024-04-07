@@ -61,3 +61,17 @@ class BitgetUnified(BaseClient):
     async def _get_derivative_mark_index_price(self, symbol: str, productType: str):
         params = {"symbol": symbol, "productType": productType}
         return await self._get(self.base_endpoint + "/api/v2/mix/market/symbol-price", params=params)
+
+    async def _get_spot_orderbook(self, symbol: str, type: str = None, limit: int = None):
+        params = {k: v for k, v in {"symbol": symbol, "type": type, "limit": limit}.items() if v}
+        return await self._get(self.base_endpoint + "/api/v2/spot/market/orderbook", params=params)
+
+    async def _get_derivative_merge_market_depth(
+        self, symbol: str, productType: str, precision: str = None, limit: str = None
+    ):
+        params = {
+            k: v
+            for k, v in {"symbol": symbol, "productType": productType, "precision": precision, "limit": limit}.items()
+            if v
+        }
+        return await self._get(self.base_endpoint + "/api/v2/mix/market/merge-depth", params=params)

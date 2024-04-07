@@ -140,6 +140,9 @@ class Bitget(BitgetUnified):
             await self._get_derivative_mark_index_price(_symbol, product_type), info, "mark"
         )
 
+    async def get_orderbook(self, instrument_id: str, depth: int = None) -> dict:
+        pass
+
     async def get_klines(
         self, instrument_id: str, interval: str, start: int = None, end: int = None, num: int = None
     ) -> dict:

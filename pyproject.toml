@@ -27,7 +27,7 @@ known_third_party = []
 known_local_folder = []
 
 [tool.mypy]
-python_version = "3.8"
+python_version = "3.10"
 warn_return_any = true
 warn_unused_configs = true
 ignore_missing_imports = true

@@ -186,6 +186,87 @@ class Binance(object):
         else:
             raise ValueError("(start, end) or num must be provided")
 
+    async def get_last_price(self, instrument_id: str) -> dict:
+        # use ticker to get last price
+        if instrument_id not in self.exchange_info:
+            raise ValueError(f"{instrument_id} not found in exchange info")
+
+        return self.parser.parse_last_price(await self.get_ticker(instrument_id), instrument_id)
+
+    async def get_index_price(self, instrument_id: str) -> dict:
+        if instrument_id not in self.exchange_info:
+            raise ValueError(f"{instrument_id} not found in exchange info")
+
+        info = self.exchange_info[instrument_id]
+        market_type = self.parser.get_market_type(info)
+        symbol = info["raw_data"]["symbol"]
+
+        exchange_method_map = {
+            "spot": self.spot._get_margin_price_index,
+            "linear": self.linear._get_mark_price,
+            "inverse": self.inverse._get_mark_index_price,
+        }
+
+        return self.parser.parse_index_price(await exchange_method_map[market_type](symbol), info, market_type)
+
+    async def get_mark_price(self, instrument_id: str) -> dict:
+        if instrument_id not in self.exchange_info:
+            raise ValueError(f"{instrument_id} not found in exchange info")
+
+        info = self.exchange_info[instrument_id]
+        market_type = self.parser.get_market_type(info)
+        symbol = info["raw_data"]["symbol"]
+
+        method_map = {"linear": self.linear._get_mark_price, "inverse": self.inverse._get_mark_index_price}
+
+        return self.parser.parse_mark_price(await method_map[market_type](symbol), info, market_type)
+
+    async def get_open_interest(self, instrument_id: str) -> dict:
+        if instrument_id not in self.exchange_info:
+            raise ValueError(f"{instrument_id} not found in exchange info")
+
+        info = self.exchange_info[instrument_id]
+        market_type = self.parser.get_market_type(info)
+
+        if market_type == "spot":
+            raise ValueError(f"spot do not have open interest. `{instrument_id}`")
+
+        symbol = info["raw_data"]["symbol"]
+        method_map = {
+            "linear": self.linear._get_open_interest,
+            "inverse": self.inverse._get_open_interest,
+        }
+
+        params = {"symbol": symbol}
+        return self.parser.parse_open_interest(await method_map[market_type](**params), info, market_type)
+
+    async def get_history_open_interest(
+        self, instrument_id: str, interval: str, start: int = None, end: int = None, num: int = 500
+    ):
+        return NotImplemented
+
+    async def get_orderbook(self, instrument_id: str, depth: int = None) -> dict:
+        if instrument_id not in self.exchange_info:
+            raise ValueError(f"{instrument_id} not found in exchange info")
+
+        info = self.exchange_info[instrument_id]
+        market_type = self.parser.get_market_type(info)
+        symbol = info["raw_data"]["symbol"]
+        method_map = {
+            "spot": self.spot._get_order_book,
+            "linear": self.linear._get_order_book,
+            "inverse": self.inverse._get_order_book,
+        }
+
+        limit_map = {
+            "spot": 5000,
+            "linear": 1000,
+            "inverse": 1000,
+        }
+
+        params = {"symbol": symbol, "limit": limit_map[market_type]}
+        return self.parser.parse_orderbook(await method_map[market_type](**params), info, market_type, depth=depth)
+
     # Private function
     async def get_spot_account_info(self) -> dict:
         return self.parser.parse_spot_account_info(await self.spot._get_account_info())

@@ -261,6 +261,54 @@ class BinanceParser(Parser):
             "raw_data": data,
         }
 
+    def parse_open_interest(self, response: dict, info: dict, market_type: str) -> dict:
+        response = self.check_response(response)
+        data = response["data"]
+
+        return {
+            "timestamp": self.parse_str(data["time"], int),
+            "instrument_id": self.parse_unified_id(info),
+            "market_type": self.parse_unified_market_type(info),
+            "oi_contract": self.parse_str(data["openInterest"], float),
+            "oi_currency": None,
+            "raw_data": data,
+        }
+
+    def parse_orderbook(self, response: dict, info: dict, market_type: str, depth: int) -> dict:
+        response = self.check_response(response)
+        data = response["data"]
+
+        results = {
+            "timestamp": self.get_timestamp(),
+            "instrument_id": self.parse_unified_id(info),
+            "asks": [
+                {
+                    "price": self.parse_str(ask[0], float),
+                    "volume": self.parse_str(ask[1], float),
+                    "order_number": None,
+                }
+                for ask in data["asks"]
+            ],
+            "bids": [
+                {
+                    "price": self.parse_str(bid[0], float),
+                    "volume": self.parse_str(bid[1], float),
+                    "order_number": None,
+                }
+                for bid in data["bids"]
+            ],
+            "raw_data": data,
+        }
+
+        results["bids"] = sorted(results["bids"], key=lambda x: x["price"], reverse=True)
+        results["asks"] = sorted(results["asks"], key=lambda x: x["price"])
+
+        if depth:
+            results["bids"] = results["bids"][:depth]
+            results["asks"] = results["asks"][:depth]
+
+        return results
+
     def get_symbol(self, info: dict) -> str:
         return f'{info["base"]}{info["quote"]}'
 

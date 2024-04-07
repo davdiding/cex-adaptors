@@ -1,6 +1,5 @@
 venv
 .env
-test_*
 __pycache__
 .vscode
 .idea

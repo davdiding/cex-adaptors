@@ -1,4 +1,5 @@
 import asyncio
+import time
 
 from .exchanges.kucoin import KucoinFutures, KucoinSpot
 from .parsers.kucoin import KucoinParser
@@ -15,15 +16,12 @@ class Kucoin(object):
 
         self.exchange_info = {}
 
-    @classmethod
-    async def create(cls):
-        instance = cls()
-        instance.exchange_info = await instance.get_exchange_info()
-        return instance
-
     async def close(self):
         await self.spot.close()
         await self.futures.close()
+
+    async def sync_exchange_info(self):
+        self.exchange_info = await self.get_exchange_info()
 
     async def get_exchange_info(self) -> dict:
         spot = self.parser.parse_exchange_info(
@@ -38,28 +36,108 @@ class Kucoin(object):
     async def get_tickers(self, market_type: str = None) -> dict:
         async def _get_derivative_tickers():
             ids = list(query_dict(self.exchange_info, "is_futures == True or is_perp == True").keys())
-            num_batch = 20
+            num_batch = 30
             results = {}
             for i in range(0, len(ids), num_batch):
                 tasks = []
                 for instrument_id in ids[i : i + num_batch]:
                     _symbol = self.exchange_info[instrument_id]["raw_data"]["symbol"]
-                    tasks.append(self.futures._get_contract_info(_symbol))
+                    tasks.append(self.futures._get_symbol_detail(_symbol))
                 raw_tickers = await asyncio.gather(*tasks)
+                # rest for 5 sec for every 5 requests to avoid rate limit
+                if i % 5 == 0:
+                    time.sleep(3)
                 parsed_tickers = self.parser.parse_derivative_tickers(raw_tickers, self.exchange_info)
                 results.update(parsed_tickers)
             return results
 
         if market_type == "spot":
             return self.parser.parse_spot_tickers(await self.spot._get_tickers(), self.exchange_info)
-
-        elif market_type == "futures":
-            return await _get_derivative_tickers()
-
         else:
+
             spot_tickers = self.parser.parse_spot_tickers(await self.spot._get_tickers(), self.exchange_info)
             derivative_tickers = await _get_derivative_tickers()
-            return {**spot_tickers, **derivative_tickers}
+            tickers = {**spot_tickers, **derivative_tickers}
+
+            if market_type:
+                ids = list(query_dict(self.exchange_info, f"is_{market_type} == True").keys())
+                return {k: v for k, v in tickers.items() if k in ids}
+            else:
+                return tickers
+
+    async def get_ticker(self, instrument_id: str) -> dict:
+        if instrument_id not in self.exchange_info:
+            raise ValueError(f"{instrument_id} is not found in {self.name} exchange info.")
+
+        info = self.exchange_info[instrument_id]
+        market_type = "spot" if info["is_spot"] else "derivative"
+        _symbol = info["raw_data"]["symbol"]
+
+        method_map = {
+            "spot": self.spot._get_24hr_stats,
+            "derivative": self.futures._get_symbol_detail,
+        }
+
+        return self.parser.parse_ticker(await method_map[market_type](_symbol), info, market_type)
+
+    async def get_last_price(self, instrument_id: str) -> float:
+        ticker = await self.get_ticker(instrument_id)
+        return {
+            "timestamp": ticker["timestamp"],
+            "instrument_id": instrument_id,
+            "last_price": ticker["last"],
+            "raw_data": ticker["raw_data"],
+        }
+
+    async def get_mark_price(self, instrument_id: str) -> float:
+        if instrument_id not in self.exchange_info:
+            raise ValueError(f"{instrument_id} is not found in {self.name} exchange info.")
+
+        info = self.exchange_info[instrument_id]
+        market_type = "spot" if info["is_spot"] else "derivative"
+        _symbol = info["raw_data"]["symbol"]
+        method_map = {
+            "spot": self.spot._get_margin_mark_price,
+            "derivative": self.futures._get_current_mark_price,
+        }
+        return self.parser.parse_mark_price(await method_map[market_type](_symbol), info, market_type)
+
+    async def get_index_price(self, instrument_id: str):
+        if instrument_id not in self.exchange_info:
+            raise ValueError(f"{instrument_id} is not found in {self.name} exchange info.")
+
+        info = self.exchange_info[instrument_id]
+
+        if info["is_spot"]:
+            raise ValueError(
+                f"{instrument_id} is a spot market. Index price is not available for spot markets in `{self.name}`."
+            )
+
+        market_type = "spot" if info["is_spot"] else "derivative"
+        _symbol = info["raw_data"]["symbol"]
+
+        return self.parser.parse_index_price(await self.futures._get_current_mark_price(_symbol), info, market_type)
+
+    async def get_orderbook(self, instrument_id: str, depth: int = None):
+        if instrument_id not in self.exchange_info:
+            raise ValueError(f"{instrument_id} is not found in {self.name} exchange info.")
+
+        info = self.exchange_info[instrument_id]
+        market_type = "spot" if info["is_spot"] else "derivative"
+        _symbol = info["raw_data"]["symbol"]
+        method_map = {
+            "spot": self.spot._get_full_orderbook,
+            "derivative": self.futures._get_full_orderbook,
+        }
+
+        results = self.parser.parse_orderbook(await method_map[market_type](_symbol), info, market_type)
+
+        results["bids"] = sorted(results["bids"], key=lambda x: x["price"], reverse=True)
+        results["asks"] = sorted(results["asks"], key=lambda x: x["price"])
+        if depth:
+            results["bids"] = results["bids"][:depth]
+            results["asks"] = results["asks"][:depth]
+        return results
 
     async def get_klines(self, instrument_id: str, interval: str, start: int = None, end: int = None, num: int = None):
         info = self.exchange_info[instrument_id]

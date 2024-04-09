@@ -315,6 +315,25 @@ class TestBitget(IsolatedAsyncioTestCase):
             self.assertTrue(mark_price)
         return
 
+    async def test_get_orderbook(self):
+        spot = "BTC/USDT:USDT"
+        perp = "BTC/USDT:USDT-PERP"
+        future = [k for k in self.bitget.exchange_info if self.bitget.exchange_info[k]["is_futures"]][0]
+        depth = 222
+
+        for i in [spot, perp, future]:
+            orderbook = await self.bitget.get_orderbook(i, depth)
+            self.assertEqual(len(orderbook["asks"]), depth)
+            self.assertEqual(len(orderbook["bids"]), depth)
+
+    async def test_get_current_funding_rate(self):
+        perp = "BTC/USDT:USDT-PERP"
+        futures = [k for k in self.bitget.exchange_info if self.bitget.exchange_info[k]["is_futures"]][0]
+
+        for i in [perp, futures]:
+            funding_rate = await self.bitget.get_current_funding_rate(i)
+            self.assertTrue(funding_rate, f"{i} {funding_rate}")
+
 
 class TestBybit(IsolatedAsyncioTestCase):
     async def asyncSetUp(self):

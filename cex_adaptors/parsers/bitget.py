@@ -41,7 +41,12 @@ class BitgetParser(Parser):
 
     def check_response(self, response: dict):
         if response["code"] == "00000":
-            return {"code": 200, "status": "success", "data": response["data"]}
+            return {
+                "code": 200,
+                "status": "success",
+                "data": response["data"],
+                "timestamp": self.parse_str(response["requestTime"], int),
+            }
         else:
             raise ValueError(f"Error in parsing Bitget response: {response}")
 
@@ -205,4 +210,19 @@ class BitgetParser(Parser):
             "quote_volume": float(response[6]),
             "close_time": None,
             "raw_data": response,
+        }
+
+    def parse_current_funding_rate(self, response: dict, info: dict) -> dict:
+        response = self.check_response(response)
+        data = response["data"][0]
+
+        return {
+            "timestamp": response["timestamp"],
+            "instrument_id": self.parse_unified_id(info),
+            "market": self.parse_unified_market_type(info),
+            "funding_time": None,
+            "funding_rate": self.parse_str(data["fundingRate"], float),
+            "next_funding_time": None,
+            "next_funding_rate": None,
+            "raw_data": data,
         }

@@ -66,6 +66,10 @@ class BitgetUnified(BaseClient):
         params = {k: v for k, v in {"symbol": symbol, "type": type, "limit": limit}.items() if v}
         return await self._get(self.base_endpoint + "/api/v2/spot/market/orderbook", params=params)
 
+    async def _get_spot_merge_depth(self, symbol: str, precision: str = None, limit: str = None):
+        params = {k: v for k, v in {"symbol": symbol, "precision": precision, "limit": limit}.items() if v}
+        return await self._get(self.base_endpoint + "/api/v2/spot/market/merge-depth", params=params)
+
     async def _get_derivative_merge_market_depth(
         self, symbol: str, productType: str, precision: str = None, limit: str = None
     ):
@@ -75,3 +79,17 @@ class BitgetUnified(BaseClient):
             if v
         }
         return await self._get(self.base_endpoint + "/api/v2/mix/market/merge-depth", params=params)
+
+    async def _get_derivative_current_funding_rate(self, symbol: str, productType: str):
+        params = {"symbol": symbol, "productType": productType}
+        return await self._get(self.base_endpoint + "/api/v2/mix/market/current-fund-rate", params=params)
+
+    async def _get_derivative_history_funding_rate(
+        self, symbol: str, productType: str, pageSize: str = None, pageNo: str = None
+    ):
+        params = {
+            k: v
+            for k, v in {"symbol": symbol, "productType": productType, "pageSize": pageSize, "pageNo": pageNo}.items()
+            if v
+        }
+        return await self._get(self.base_endpoint + "/api/v2/mix/market/history-fund-rate", params=params)

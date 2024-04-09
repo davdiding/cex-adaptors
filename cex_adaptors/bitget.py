@@ -204,3 +204,40 @@ class Bitget(BitgetUnified):
 
         else:
             raise ValueError("(start, end) or num must be provided")
+
+    async def get_current_funding_rate(self, instrument_id: str) -> dict:
+        if instrument_id not in self.exchange_info:
+            raise f"{instrument_id} not found in {self.name} exchange info"
+
+        info = self.exchange_info[instrument_id]
+        _symbol = info["raw_data"]["symbol"]
+        _product_type = self.parser.get_product_type(info)
+
+        return self.parser.parse_current_funding_rate(
+            await self._get_derivative_current_funding_rate(_symbol, _product_type), info
+        )
+
+    async def get_history_funding_rate(
+        self, instrument_id: str, start: int = None, end: int = None, num: int = 30
+    ) -> list:
+        if instrument_id not in self.exchange_info:
+            raise f"{instrument_id} not found in {self.name} exchange info"
+
+        info = self.exchange_info[instrument_id]
+        _symbol = info["raw_data"]["symbol"]
+        _product_type = self.parser.get_product_type(info)
+        limit = 100
+        params = {
+            "symbol": _symbol,
+            "productType": _product_type,
+            "pageSize": limit,
+        }
+
+        results = []
+        if start and end:
+            pass
+        elif num:
+            pass
+        else:
+            raise ValueError("(start, end) or num must be provided")
+        return results, params

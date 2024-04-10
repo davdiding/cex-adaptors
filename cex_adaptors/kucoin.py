@@ -78,9 +78,9 @@ class Kucoin(object):
             "derivative": self.futures._get_symbol_detail,
         }
 
-        return self.parser.parse_ticker(await method_map[market_type](_symbol), info, market_type)
+        return {instrument_id: self.parser.parse_ticker(await method_map[market_type](_symbol), info, market_type)}
 
-    async def get_last_price(self, instrument_id: str) -> float:
+    async def get_last_price(self, instrument_id: str) -> dict:
         ticker = await self.get_ticker(instrument_id)
         return {
             "timestamp": ticker["timestamp"],
@@ -89,7 +89,7 @@ class Kucoin(object):
             "raw_data": ticker["raw_data"],
         }
 
-    async def get_mark_price(self, instrument_id: str) -> float:
+    async def get_mark_price(self, instrument_id: str) -> dict:
         if instrument_id not in self.exchange_info:
             raise ValueError(f"{instrument_id} is not found in {self.name} exchange info.")
 

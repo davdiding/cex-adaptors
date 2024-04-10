@@ -36,23 +36,31 @@ class Bybit(BybitUnified):
         tickers = ["spot", "linear", "inverse"]
 
         for _market_type in tickers:
-            parsed_tickers = self.parser.parse_tickers(await self._get_tickers(_market_type), _market_type)
-            id_map = self.parser.get_id_symbol_map(self.exchange_info, _market_type)
-
-            for ticker in parsed_tickers:
-                symbol = ticker["symbol"]
-                if symbol not in id_map:
-                    print(symbol)
-                    continue
-                id = id_map[symbol]
-
-                results[id] = ticker
+            parsed_tickers = self.parser.parse_tickers(
+                await self._get_tickers(_market_type), _market_type, self.exchange_info
+            )
+            results.update(parsed_tickers)
 
         if market_type:
             ids = list(self.parser.query_dict(self.exchange_info, {f"is_{market_type}": True}).keys())
             return self.parser.query_dict_by_keys(results, ids)
         else:
             return results
+
+    async def get_ticker(self, instrument_id: str) -> dict:
+        if instrument_id not in self.exchange_info:
+            raise ValueError(f"{instrument_id} is not found in {self.name} exchange info.")
+
+        info = self.exchange_info[instrument_id]
+        _symbol = info["raw_data"]["symbol"]
+        _market_type = self.parser.get_market_type(info)
+        _category = self.parser.get_category(info)
+
+        return {
+            instrument_id: self.parser.parse_raw_ticker(
+                await self._get_ticker(symbol=_symbol, category=_category), _market_type, info
+            )
+        }
 
     async def get_klines(self, instrument_id: str, interval: str, start: int = None, end: int = None, num: int = 30):
         _category = self.parser.get_category(self.exchange_info[instrument_id])

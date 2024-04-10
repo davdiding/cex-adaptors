@@ -386,13 +386,23 @@ class TestBybit(IsolatedAsyncioTestCase):
         self.bybit_public = Bybit()
         await self.bybit_public.sync_exchange_info()
 
-        self.bybit_private = Bybit(
-            api_key=os.getenv("BYBIT_API_KEY"), api_secret=os.getenv("BYBIT_API_SECRET"), testnet=False
-        )
-
     async def asyncTearDown(self):
         await self.bybit_public.close()
-        await self.bybit_private.close()
+
+    async def test_get_tickers(self):
+        spot = await self.bybit_public.get_tickers("spot")
+        self.assertTrue(spot)
+
+        perp = await self.bybit_public.get_tickers("perp")
+        self.assertTrue(perp)
+
+        future = await self.bybit_public.get_tickers("futures")
+        self.assertTrue(future)
+
+        tickers = await self.bybit_public.get_tickers()
+        self.assertTrue(tickers)
+
+        return
 
     async def test_get_funding_rate(self):
         instrument_id = "BTC/USDT:USDT-PERP"
@@ -446,4 +456,72 @@ class TestBybit(IsolatedAsyncioTestCase):
     async def test_get_account_balance(self):
         balance = await self.bybit_private.get_account_balance()
         self.assertTrue(balance)
+        return
+
+
+class TestOutputStructure(IsolatedAsyncioTestCase):
+    ticker_structure = {
+        "timestamp": int,
+        "instrument_id": str,
+        "open_time": int,
+        "close_time": int,
+        "open": float,
+        "high": float,
+        "low": float,
+        "last": float,
+        "base_volume": float,
+        "quote_volume": float,
+        "price_change": float,
+        "price_change_percent": float,
+        "raw_data": dict,
+    }
+
+    async def asyncSetUp(self):
+        self.okx_public = Okx()
+        self.binace_public = Binance()
+        self.kucoin_public = Kucoin()
+        self.bitget_public = Bitget()
+        self.bybit_public = Bybit()
+        self.exchange_list = [
+            self.okx_public,
+            self.binace_public,
+            self.kucoin_public,
+            self.bitget_public,
+            self.bybit_public,
+        ]
+
+        for i in self.exchange_list:
+            await i.sync_exchange_info()
+
+    async def asyncTearDown(self):
+        for i in self.exchange_list:
+            await i.close()
+
+    async def test_ticker_output_structure(self):
+        """
+        Test if the output of get_ticker() has the correct structure
+        1. all the keys in the output should be the same
+        2. all the values should be the correct type
+        3. no other keys should be present
+        """
+        for exchange in self.exchange_list:
+            spot = "BTC/USDT:USDT"
+            perp = "BTC/USDT:USDT-PERP"
+            futures = list(filter(lambda x: exchange.exchange_info[x]["is_futures"], exchange.exchange_info))[0]
+
+            for instrument_id in [spot, perp, futures]:
+                ticker = await exchange.get_ticker(instrument_id)
+                print(exchange.name, ticker)
+                data = ticker[instrument_id]
+                # check if all the keys are the same
+                self.assertEqual(
+                    set(data.keys()), set(self.ticker_structure.keys()), msg=f"{exchange.name} {instrument_id} {data}"
+                )
+
+                # check if all the values are the correct type
+                for key, value in data.items():
+                    if value:
+                        self.assertIsInstance(
+                            value, self.ticker_structure[key], msg=f"{exchange.name} {instrument_id} {key} {value}"
+                        )
         return

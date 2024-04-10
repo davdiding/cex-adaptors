@@ -103,7 +103,7 @@ class Bitget(BitgetUnified):
             "derivative": self._get_derivative_ticker,
         }
         params = {"symbol": _symbol} if market_type == "spot" else {"symbol": _symbol, "productType": product_type}
-        return self.parser.parse_raw_ticker(await method_map[market_type](**params), info, market_type)
+        return {instrument_id: self.parser.parse_raw_ticker(await method_map[market_type](**params), info, market_type)}
 
     async def get_last_price(self, instrument_id: str) -> dict:
         ticker = await self.get_ticker(instrument_id)

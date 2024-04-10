@@ -1,5 +1,3 @@
-from datetime import timedelta as td
-
 from .base import Parser
 
 
@@ -134,7 +132,7 @@ class OkxParser(Parser):
                 spots[instrument_id] = spot
         return spots
 
-    def parse_ticker(self, response: any, market_type: str) -> dict:
+    def parse_ticker(self, response: any, market_type: str, info: dict) -> dict:
         if "data" in response:
             response = response["data"][0]
 
@@ -146,13 +144,14 @@ class OkxParser(Parser):
             quote_volume = float(response["volCcy24h"]) * (float(response["last"]) + float(response["open24h"])) / 2
 
         return {
-            "symbol": response["instId"],
-            "open_time": self.adjust_timestamp(int(response["ts"]), td(days=-1)),
-            "close_time": int(response["ts"]),
-            "open": float(response["open24h"]),
-            "high": float(response["high24h"]),
-            "low": float(response["low24h"]),
-            "last_price": float(response["last"]),
+            "timestamp": self.parse_str(response["ts"], int),
+            "instrument_id": self.parse_unified_id(info),
+            "open_time": None,
+            "close_time": self.parse_str(response["ts"], int),
+            "open": self.parse_str(response["open24h"], float),
+            "high": self.parse_str(response["high24h"], float),
+            "low": self.parse_str(response["low24h"], float),
+            "last": self.parse_str(response["last"], float),
             "base_volume": base_volume,
             "quote_volume": quote_volume,
             "price_change": None,
@@ -173,7 +172,8 @@ class OkxParser(Parser):
         results = {}
         for data in datas:
             instrument_id = id_map[data["instId"]]
-            results[instrument_id] = self.parse_ticker(data, market_type)
+            info = infos[instrument_id]
+            results[instrument_id] = self.parse_ticker(data, market_type, info)
         return results
 
     @staticmethod

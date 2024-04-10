@@ -81,17 +81,18 @@ class BinanceParser(Parser):
         quote_volume *= info["contract_size"] if info["is_perp"] or info["is_futures"] else 1
 
         return {
-            "symbol": response["symbol"],
-            "open_time": int(response["openTime"]),
-            "close_time": int(response["closeTime"]),
-            "open": float(response["openPrice"]),
-            "high": float(response["highPrice"]),
-            "low": float(response["lowPrice"]),
-            "last_price": float(response["lastPrice"]),
+            "timestamp": self.parse_str(response["closeTime"], int),
+            "instrument_id": self.parse_unified_id(info),
+            "open_time": self.parse_str(response["openTime"], int),
+            "close_time": self.parse_str(response["closeTime"], int),
+            "open": self.parse_str(response["openPrice"], float),
+            "high": self.parse_str(response["highPrice"], float),
+            "low": self.parse_str(response["lowPrice"], float),
+            "last": self.parse_str(response["lastPrice"], float),
             "base_volume": base_volume,
             "quote_volume": quote_volume,
-            "price_change": float(response["priceChange"]),
-            "price_change_percent": float(response["priceChangePercent"]) / 100,
+            "price_change": self.parse_str(response["priceChange"], float),
+            "price_change_percent": self.parse_str(response["priceChangePercent"], float) / 100,
             "raw_data": response,
         }
 

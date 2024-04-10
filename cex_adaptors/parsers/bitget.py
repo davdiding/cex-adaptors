@@ -226,3 +226,45 @@ class BitgetParser(Parser):
             "next_funding_rate": None,
             "raw_data": data,
         }
+
+    def parse_history_funding_rate(self, response: dict, info: dict) -> dict:
+        response = self.check_response(response)
+        datas = response["data"]
+
+        return [
+            {
+                "timestamp": self.parse_str(data["fundingTime"], int),
+                "instrument_id": self.parse_unified_id(info),
+                "market": self.parse_unified_market_type(info),
+                "funding_rate": self.parse_str(data["fundingRate"], float),
+                "realized_rate": self.parse_str(data["fundingRate"], float),
+                "raw_data": data,
+            }
+            for data in datas
+        ]
+
+    def parse_orderbook(self, response: dict, info: dict) -> dict:
+        response = self.check_response(response)
+        datas = response["data"]
+
+        return {
+            "timestamp": self.parse_str(datas["ts"], int),
+            "instrument_id": self.parse_unified_id(info),
+            "asks": [
+                {
+                    "price": self.parse_str(ask[0], float),
+                    "volume": self.parse_str(ask[1], float),
+                    "order_number": None,
+                }
+                for ask in datas["asks"]
+            ],
+            "bids": [
+                {
+                    "price": self.parse_str(bid[0], float),
+                    "volume": self.parse_str(bid[1], float),
+                    "order_number": None,
+                }
+                for bid in datas["bids"]
+            ],
+            "raw_data": datas,
+        }

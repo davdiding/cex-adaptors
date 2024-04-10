@@ -141,7 +141,31 @@ class Bitget(BitgetUnified):
         )
 
     async def get_orderbook(self, instrument_id: str, depth: int = None) -> dict:
-        pass
+        if instrument_id not in self.exchange_info:
+            raise f"{instrument_id} not found in {self.name} exchange info"
+
+        info = self.exchange_info[instrument_id]
+        _symbol = info["raw_data"]["symbol"]
+        _market_type = self.parser.get_market_type(info)
+        limit = "max"
+        params = {
+            "symbol": _symbol,
+            "limit": limit,
+        }
+
+        if _market_type == "derivative":
+            params.update({"productType": self.parser.get_product_type(info)})
+        method_map = {
+            "spot": self._get_spot_merge_depth,
+            "derivative": self._get_derivative_merge_market_depth,
+        }
+        orderbook = self.parser.parse_orderbook(await method_map[_market_type](**params), info)
+
+        if depth:
+            orderbook["asks"] = sorted(orderbook["asks"], key=lambda x: x["price"], reverse=False)[:depth]
+            orderbook["bids"] = sorted(orderbook["bids"], key=lambda x: x["price"], reverse=True)[:depth]
+
+        return orderbook
 
     async def get_klines(
         self, instrument_id: str, interval: str, start: int = None, end: int = None, num: int = None
@@ -227,17 +251,45 @@ class Bitget(BitgetUnified):
         _symbol = info["raw_data"]["symbol"]
         _product_type = self.parser.get_product_type(info)
         limit = 100
-        params = {
-            "symbol": _symbol,
-            "productType": _product_type,
-            "pageSize": limit,
-        }
+        page = 1
+        params = {"symbol": _symbol, "productType": _product_type, "pageSize": limit, "pageNo": page}
 
         results = []
         if start and end:
-            pass
+            while True:
+                params.update({"pageNo": page})
+                result = self.parser.parse_history_funding_rate(
+                    await self._get_derivative_history_funding_rate(**params), info
+                )
+                results.extend(result)
+
+                # exclude data with same timestamp
+                results = list({v["timestamp"]: v for v in results}.values())
+
+                if len(result) < limit:
+                    break
+                min_timestamp = min([i["timestamp"] for i in result])
+                if min_timestamp < start:
+                    break
+
+            return sorted(
+                [i for i in results if start <= i["timestamp"] <= end], key=lambda x: x["timestamp"], reverse=False
+            )
         elif num:
-            pass
+            while True:
+                params.update({"pageNo": page})
+                result = self.parser.parse_history_funding_rate(
+                    await self._get_derivative_history_funding_rate(**params), info
+                )
+                results.extend(result)
+
+                # exclude data with same timestamp
+                results = list({v["timestamp"]: v for v in results}.values())
+
+                if len(result) < limit or len(results) > num:
+                    break
+                page += 1
+                continue
+            return sorted(results, key=lambda x: x["timestamp"], reverse=False)[-num:]
         else:
             raise ValueError("(start, end) or num must be provided")
-        return results, params

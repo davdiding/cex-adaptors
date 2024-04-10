@@ -1,5 +1,6 @@
 import os
 from datetime import datetime as dt
+from datetime import timedelta as td
 from unittest import IsolatedAsyncioTestCase
 
 from dotenv import load_dotenv
@@ -11,6 +12,11 @@ from cex_adaptors.kucoin import Kucoin
 from cex_adaptors.okx import Okx
 
 load_dotenv()
+
+
+def get_yesterday_timestamp():
+    date = dt.date(dt.now()) - td(days=1)
+    return int(dt(date.year, date.month, date.day).timestamp() * 1000)
 
 
 class TestOkx(IsolatedAsyncioTestCase):
@@ -75,6 +81,21 @@ class TestOkx(IsolatedAsyncioTestCase):
         self.assertTrue(cancel)
         return
 
+    async def test_get_funding_rate_with_timestamp(self):
+        perp = "BTC/USDT:USDT-PERP"
+        futures = [k for k in self.exchange.exchange_info if self.exchange.exchange_info[k]["is_futures"]][0]
+
+        delta = 10
+        start = get_yesterday_timestamp() - delta * 24 * 60 * 60 * 1000
+        end = get_yesterday_timestamp()
+        target_num = 3 * delta + 1
+
+        for i in [perp, futures]:
+            funding_rate = await self.exchange.get_history_funding_rate(i, start=start, end=end)
+            self.assertEqual(len(funding_rate), target_num, f"{i} {len(funding_rate)}")
+
+        return
+
 
 class TestBinance(IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
@@ -122,14 +143,18 @@ class TestBinance(IsolatedAsyncioTestCase):
     async def test_get_funding_rate_with_timestamp(self):
         # linear
         instrument_id = "BTC/USDT:USDT-PERP"
-        start = int(dt(2024, 3, 1).timestamp() * 1000)
-        end = int(dt(2024, 3, 10).timestamp() * 1000)
+
+        delta = 10
+        start = get_yesterday_timestamp() - delta * 24 * 60 * 60 * 1000
+        end = get_yesterday_timestamp()
+        target_num = 3 * delta + 1
+
         funding_rate = await self.binance.get_history_funding_rate(instrument_id, start=start, end=end)
-        self.assertEqual(len(funding_rate), 28)
+        self.assertEqual(len(funding_rate), target_num)
 
         instrument_id = "BTC/USD:BTC-PERP"
         funding_rate = await self.binance.get_history_funding_rate(instrument_id, start=start, end=end)
-        self.assertEqual(len(funding_rate), 28)
+        self.assertEqual(len(funding_rate), target_num)
         return
 
     async def test_get_price(self):
@@ -319,7 +344,7 @@ class TestBitget(IsolatedAsyncioTestCase):
         spot = "BTC/USDT:USDT"
         perp = "BTC/USDT:USDT-PERP"
         future = [k for k in self.bitget.exchange_info if self.bitget.exchange_info[k]["is_futures"]][0]
-        depth = 222
+        depth = 75
 
         for i in [spot, perp, future]:
             orderbook = await self.bitget.get_orderbook(i, depth)
@@ -333,6 +358,27 @@ class TestBitget(IsolatedAsyncioTestCase):
         for i in [perp, futures]:
             funding_rate = await self.bitget.get_current_funding_rate(i)
             self.assertTrue(funding_rate, f"{i} {funding_rate}")
+        return
+
+    async def test_get_history_funding_rate_with_num(self):
+        perp = "BTC/USDT:USDT-PERP"
+        num = 120
+
+        funding_rate = await self.bitget.get_history_funding_rate(perp, num=num)
+        self.assertEqual(len(funding_rate), num, msg=f"{perp} {len(funding_rate)}")
+        return
+
+    async def test_get_history_funding_rate_with_timestamp(self):
+        perp = "BTC/USDT:USDT-PERP"
+
+        delta = 10
+        start = get_yesterday_timestamp() - delta * 24 * 60 * 60 * 1000
+        end = get_yesterday_timestamp()
+        target_num = 3 * delta + 1
+
+        funding_rate = await self.bitget.get_history_funding_rate(perp, start=start, end=end)
+        self.assertEqual(len(funding_rate), target_num)
+        return True
 
 
 class TestBybit(IsolatedAsyncioTestCase):

@@ -67,9 +67,12 @@ class Okx(OkxUnified):
             return results
 
     async def get_ticker(self, instrument_id: str):
+        if instrument_id not in self.exchange_info:
+            raise Exception(f"{instrument_id} not found in {self.name} exchange_info")
         _instrument_id = self.exchange_info[instrument_id]["raw_data"]["instId"]
         market_type = self._market_type_map[self.exchange_info[instrument_id]["raw_data"]["instType"]]
-        return {instrument_id: self.parser.parse_ticker(await self._get_ticker(_instrument_id), market_type)}
+        info = self.exchange_info[instrument_id]
+        return {instrument_id: self.parser.parse_ticker(await self._get_ticker(_instrument_id), market_type, info)}
 
     async def get_klines(self, instrument_id: str, interval: str, start: int = None, end: int = None, num: int = None):
         info = self.exchange_info[instrument_id]

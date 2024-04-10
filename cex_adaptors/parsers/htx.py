@@ -55,12 +55,14 @@ class HtxParser(Parser):
         super().__init__()
 
     def check_htx_response(self, response: dict):
-        if response["status"] != "ok":
-            return {"code": 400, "status": "error", "data": response}
-        else:
+        if response["status"] == "ok":
             for _key in self.response_keys:
                 if _key in response:
-                    return {"code": 200, "status": "success", "data": response[_key]}
+                    results = {"code": 200, "status": "success", "data": response[_key]}
+                    results.update({"timestamp": response["ts"]} if "ts" in response else {})
+                    return results
+        else:
+            raise ValueError(f"Error when parsing HTX response: {response}")
 
     @property
     def spot_exchange_info_parser(self) -> dict:
@@ -180,8 +182,6 @@ class HtxParser(Parser):
 
     def parse_exchange_info(self, response: dict, parser: dict):
         response = self.check_htx_response(response)
-        if response["code"] != 200:
-            return response
 
         results = {}
         datas = response["data"]
@@ -219,8 +219,6 @@ class HtxParser(Parser):
 
     def parse_tickers(self, response: dict, exchange_infos: dict, market_type: str) -> dict:
         response = self.check_htx_response(response)
-        if response["code"] != 200:
-            return response
 
         method_map = {
             "spot": self.parse_spot_ticker,
@@ -245,69 +243,94 @@ class HtxParser(Parser):
                 print(f"Unmapped symbol: {data[keys_map[market_type]]} in {market_type}")
                 continue
             instrument_id = id_map[data[keys_map[market_type]]]
-            results[instrument_id] = method_map[market_type](data, exchange_infos[instrument_id])
+            params = {
+                "response": data,
+                "info": exchange_infos[instrument_id],
+            }
+            if market_type == "spot":
+                params["timestamp"] = response["timestamp"]
+            results[instrument_id] = method_map[market_type](**params)
         return results
 
-    def parse_spot_ticker(self, response: dict, info: dict):
+    def parse_ticker(self, response: dict, market_type: str, info: dict) -> dict:
+        method_map = {
+            "spot": self.parse_spot_ticker,
+            "linear": self.parse_linear_ticker,
+            "inverse_perp": self.parse_inverse_perp_ticker,
+            "inverse_futures": self.parse_inverse_futures_ticker,
+        }
+        params = {
+            "response": response,
+            "info": info,
+        }
+        if market_type == "spot":
+            params["timestamp"] = response["ts"]
+        return method_map[market_type](**params)
+
+    def parse_spot_ticker(self, response: dict, info: dict, timestamp: str):
         return {
-            "symbol": response["symbol"],
+            "timestamp": self.parse_str(timestamp, int),
+            "instrument_id": self.parse_unified_id(info),
             "open_time": None,
             "close_time": None,
-            "open": float(response["open"]),
-            "high": float(response["high"]),
-            "low": float(response["low"]),
-            "last_price": float(response["close"]),
-            "base_volume": float(response["amount"]),
-            "quote_volume": float(response["vol"]),
-            "price_change": float(response["close"]) - float(response["open"]),
+            "open": self.parse_str(response["open"], float),
+            "high": self.parse_str(response["high"], float),
+            "low": self.parse_str(response["low"], float),
+            "last": self.parse_str(response["close"], float),
+            "base_volume": self.parse_str(response["amount"], float),
+            "quote_volume": self.parse_str(response["vol"], float),
+            "price_change": self.parse_str(response["close"], float) - self.parse_str(response["open"], float),
             "price_change_percent": None,
             "raw_data": response,
         }
 
     def parse_linear_ticker(self, response: dict, info: dict):
         return {
-            "symbol": response["contract_code"],
+            "timestamp": self.parse_str(response["ts"], int),
+            "instrument_id": self.parse_unified_id(info),
             "open_time": None,
-            "close_time": int(response["ts"]),
-            "open": float(response["open"]),
-            "high": float(response["high"]),
-            "low": float(response["low"]),
-            "last_price": float(response["close"]),
-            "base_volume": float(response["amount"]) * info["contract_size"],
-            "quote_volume": float(response["vol"]),
-            "price_change": float(response["close"]) - float(response["open"]),
+            "close_time": self.parse_str(response["ts"], int),
+            "open": self.parse_str(response["open"], float),
+            "high": self.parse_str(response["high"], float),
+            "low": self.parse_str(response["low"], float),
+            "last": self.parse_str(response["close"], float),
+            "base_volume": self.parse_str(response["amount"], float) * info["contract_size"],
+            "quote_volume": self.parse_str(response["vol"], float),
+            "price_change": self.parse_str(response["close"], float) - self.parse_str(response["open"], float),
             "price_change_percent": None,
             "raw_data": response,
         }
 
     def parse_inverse_perp_ticker(self, response: dict, info: dict):
         return {
-            "symbol": response["contract_code"],
+            "timestamp": self.parse_str(response["ts"], int),
+            "instrument_id": self.parse_unified_id(info),
             "open_time": None,
-            "close_time": int(response["ts"]),
-            "open": float(response["open"]),
-            "high": float(response["high"]),
-            "low": float(response["low"]),
-            "last_price": float(response["close"]),
-            "base_volume": float(response["amount"]),
-            "quote_volume": float(response["vol"]),
-            "price_change": float(response["close"]) - float(response["open"]),
+            "close_time": self.parse_str(response["ts"], int),
+            "open": self.parse_str(response["open"], float),
+            "high": self.parse_str(response["high"], float),
+            "low": self.parse_str(response["low"], float),
+            "last": self.parse_str(response["close"], float),
+            "base_volume": self.parse_str(response["amount"], float),
+            "quote_volume": self.parse_str(response["vol"], float),
+            "price_change": self.parse_str(response["close"], float) - self.parse_str(response["open"], float),
             "price_change_percent": None,
             "raw_data": response,
         }
 
     def parse_inverse_futures_ticker(self, response: dict, info: dict):
         return {
-            "symbol": response["symbol"],
+            "timestamp": self.parse_str(response["ts"], int),
+            "instrument_id": self.parse_unified_id(info),
             "open_time": None,
-            "close_time": int(response["ts"]),
-            "open": float(response["open"]),
-            "high": float(response["high"]),
-            "low": float(response["low"]),
-            "last_price": float(response["close"]),
-            "base_volume": float(response["amount"]),
-            "quote_volume": float(response["vol"]),
-            "price_change": float(response["close"]) - float(response["open"]),
+            "close_time": self.parse_str(response["ts"], int),
+            "open": self.parse_str(response["open"], float),
+            "high": self.parse_str(response["high"], float),
+            "low": self.parse_str(response["low"], float),
+            "last": self.parse_str(response["close"], float),
+            "base_volume": self.parse_str(response["amount"], float),
+            "quote_volume": self.parse_str(response["vol"], float),
+            "price_change": self.parse_str(response["close"], float) - self.parse_str(response["open"], float),
             "price_change_percent": None,
             "raw_data": response,
         }

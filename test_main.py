@@ -8,6 +8,7 @@ from dotenv import load_dotenv
 from cex_adaptors.binance import Binance
 from cex_adaptors.bitget import Bitget
 from cex_adaptors.bybit import Bybit
+from cex_adaptors.htx import Htx
 from cex_adaptors.kucoin import Kucoin
 from cex_adaptors.okx import Okx
 
@@ -206,6 +207,39 @@ class TestBinance(IsolatedAsyncioTestCase):
             # check if orderbook depth is correct
             self.assertEqual(len(orderbook["asks"]), depth)
             self.assertEqual(len(orderbook["bids"]), depth)
+        return
+
+
+class TestHTX(IsolatedAsyncioTestCase):
+    async def asyncSetUp(self):
+        self.htx = Htx()
+        await self.htx.sync_exchange_info()
+
+    async def asyncTearDown(self):
+        await self.htx.close()
+
+    async def test_get_tickers(self):
+        spot = await self.htx.get_tickers("spot")
+        self.assertTrue(spot)
+
+        futures = await self.htx.get_tickers("futures")
+        self.assertTrue(futures)
+
+        perp = await self.htx.get_tickers("perp")
+        self.assertTrue(perp)
+
+        tickers = await self.htx.get_tickers()
+        self.assertTrue(tickers)
+        return
+
+    async def test_get_ticker(self):
+        spot = "BTC/USDT:USDT"
+        perp = "BTC/USDT:USDT-PERP"
+        futures = [k for k in self.htx.exchange_info if self.htx.exchange_info[k]["is_futures"]][0]
+
+        for i in [spot, perp, futures]:
+            ticker = await self.htx.get_ticker(i)
+            self.assertTrue(ticker)
         return
 
 
@@ -482,12 +516,14 @@ class TestOutputStructure(IsolatedAsyncioTestCase):
         self.kucoin_public = Kucoin()
         self.bitget_public = Bitget()
         self.bybit_public = Bybit()
+        self.htx_public = Htx()
         self.exchange_list = [
             self.okx_public,
             self.binace_public,
             self.kucoin_public,
             self.bitget_public,
             self.bybit_public,
+            self.htx_public,
         ]
 
         for i in self.exchange_list:

@@ -16,11 +16,8 @@ class Htx(object):
         await self.spot.close()
         await self.futures.close()
 
-    @classmethod
-    async def create(cls):
-        instance = cls()
-        instance.exchange_info = await instance.get_exchange_info()
-        return instance
+    async def sync_exchange_info(self):
+        self.exchange_info = await self.get_exchange_info()
 
     async def get_exchange_info(self, market_type: str = None):
         spot = self.parser.parse_exchange_info(
@@ -71,6 +68,14 @@ class Htx(object):
                 await self.futures._get_inverse_futures_tickers(), self.exchange_info, "inverse_futures"
             )
             return {**spot, **linear, **inverse_perp, **inverse_futures}
+
+    async def get_ticker(self, instrument_id: str) -> dict:
+        # HTX do not support get_ticker endpoint, can only get one ticker from get_tickers
+        tickers = await self.get_tickers()
+        if instrument_id not in tickers:
+            raise ValueError(f"{instrument_id} not found in {self.name} exchange info")
+
+        return {instrument_id: tickers[instrument_id]}
 
     async def get_klines(self, instrument_id: str, interval: str, start: int = None, end: int = None, num: int = None):
         if instrument_id not in self.exchange_info:

@@ -3,34 +3,26 @@ from .parsers.gateio import GateioParser
 from .utils import sort_dict
 
 
-class Gateio(object):
+class Gateio(GateioClient):
     name = "gateio"
 
     PERP_SETTLE = ["btc", "usdt", "usd"]
 
     def __init__(self):
-        self.exchange = GateioClient()
+        super().__init__()
         self.parser = GateioParser()
         self.exchange_info = {}
 
-    async def close(self):
-        await self.exchange.close()
-
-    @classmethod
-    async def create(cls):
-        instance = cls()
-        instance.exchange_info = await instance.get_exchange_info()
-        return instance
+    async def sync_exchange_info(self):
+        self.exchange_info = await self.get_exchange_info()
 
     async def get_exchange_info(self):
-        spot = self.parser.parse_exchange_info(
-            await self.exchange._get_currency_pairs(), self.parser.spot_exchange_info_parser
-        )
+        spot = self.parser.parse_exchange_info(await self._get_currency_pairs(), self.parser.spot_exchange_info_parser)
 
         perps = {}
         for settle in self.PERP_SETTLE:
             perp = self.parser.parse_exchange_info(
-                await self.exchange._get_perp_info(settle),
+                await self._get_perp_info(settle),
                 self.parser.perp_exchange_info_parser,
                 settle=settle.upper(),
             )
@@ -38,7 +30,7 @@ class Gateio(object):
 
         settle = "usdt"
         futures = self.parser.parse_exchange_info(
-            await self.exchange._get_futures_info(settle),
+            await self._get_futures_info(settle),
             self.parser.futures_exchange_info_parser,
             settle=settle.upper(),
         )
@@ -47,31 +39,47 @@ class Gateio(object):
 
     async def get_tickers(self, market_type: str = None) -> dict:
         if market_type == "spot":
-            return self.parser.parse_tickers(await self.exchange._get_spot_tickers(), self.exchange_info, "spot")
+            return self.parser.parse_tickers(await self._get_spot_tickers(), self.exchange_info, "spot")
         elif market_type == "futures":
             return self.parser.parse_tickers(
-                await self.exchange._get_futures_tickers(settle="usdt"), self.exchange_info, "futures"
+                await self._get_futures_tickers(settle="usdt"), self.exchange_info, "futures"
             )
         elif market_type == "perp":
             perps = {}
             for settle in self.PERP_SETTLE:
-                perp = self.parser.parse_tickers(
-                    await self.exchange._get_perp_tickers(settle), self.exchange_info, "perp"
-                )
+                perp = self.parser.parse_tickers(await self._get_perp_tickers(settle), self.exchange_info, "perp")
                 perps.update(perp)
             return perps
         else:
-            spot = self.parser.parse_tickers(await self.exchange._get_spot_tickers(), self.exchange_info, "spot")
+            spot = self.parser.parse_tickers(await self._get_spot_tickers(), self.exchange_info, "spot")
             futures = self.parser.parse_tickers(
-                await self.exchange._get_futures_tickers(settle="usdt"), self.exchange_info, "futures"
+                await self._get_futures_tickers(settle="usdt"), self.exchange_info, "futures"
             )
             perps = {}
             for settle in self.PERP_SETTLE:
-                perp = self.parser.parse_tickers(
-                    await self.exchange._get_perp_tickers(settle), self.exchange_info, "perp"
-                )
+                perp = self.parser.parse_tickers(await self._get_perp_tickers(settle), self.exchange_info, "perp")
                 perps.update(perp)
             return {**spot, **futures, **perps}
+
+    async def get_ticker(self, instrument_id: str) -> dict:
+        if instrument_id not in self.exchange_info:
+            raise ValueError(f"{instrument_id} not found in {self.name} exchange info")
+        info = self.exchange_info[instrument_id]
+        market_type = self.parser.get_market_type(info)
+        method_map = {
+            "spot": self._get_spot_tickers,
+            "futures": self._get_futures_tickers,
+            "perp": self._get_perp_tickers,
+        }
+        # prepare request params
+        if market_type == "spot":
+            params = {"currency_pair": info["raw_data"]["id"]}
+        elif market_type == "futures":
+            params = {"contract": info["raw_data"]["name"], "settle": info["settle"].lower()}
+        else:  # perp
+            params = {"contract": info["raw_data"]["name"], "settle": info["settle"].lower()}
+
+        return {instrument_id: self.parser.parse_raw_ticker(await method_map[market_type](**params), market_type, info)}
 
     async def get_klines(
         self, instrument_id: str, interval: str, start: int = None, end: int = None, num: int = None
@@ -91,9 +99,9 @@ class Gateio(object):
         }
 
         method_map = {
-            "spot": self.exchange._get_spot_klines,
-            "futures": self.exchange._get_futures_klines,
-            "perp": self.exchange._get_perp_klines,
+            "spot": self._get_spot_klines,
+            "futures": self._get_futures_klines,
+            "perp": self._get_perp_klines,
         }
 
         params = {

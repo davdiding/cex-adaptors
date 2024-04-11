@@ -145,11 +145,6 @@ class GateioParser(Parser):
         datas = response["data"]
 
         id_map = self.get_id_map(exchange_info, market_type)
-        method_map = {
-            "spot": self.parse_spot_ticker,
-            "futures": self.parse_futures_ticker,
-            "perp": self.parse_perp_ticker,
-        }
 
         key_map = {
             "spot": "currency_pair",
@@ -160,55 +155,26 @@ class GateioParser(Parser):
         results = {}
         for data in datas:
             instrument_id = id_map[data[key_map[market_type]]]
-            results[instrument_id] = method_map[market_type](data, exchange_info[instrument_id])
+            results[instrument_id] = self.parse_ticker(data, market_type, exchange_info[instrument_id])
         return results
 
-    def parse_spot_ticker(self, response: dict, info: dict) -> dict:
+    def parse_ticker(self, data: dict, market_type: str, info: dict) -> dict:
         return {
-            "symbol": response["currency_pair"],
-            "open_time": None,  # Not yet implemented
-            "close_time": None,  # Not yet implemented
-            "open": None,  # Not yet implemented
-            "high": float(response["high_24h"]),
-            "low": float(response["low_24h"]),
-            "last_price": float(response["last"]),
-            "base_volume": float(response["base_volume"]),
-            "quote_volume": float(response["quote_volume"]),
-            "price_change": float(response["change_utc8"]),
-            "price_change_percent": float(response["change_percentage"]) / 100,
-            "raw_data": response,
-        }
-
-    def parse_futures_ticker(self, response: dict, info: dict) -> dict:
-        return {
-            "symbol": response["contract"],
-            "open_time": None,  # Not yet implemented
-            "close_time": None,  # Not yet implemented
-            "open": None,  # Not yet implemented
-            "high": float(response["high_24h"]),
-            "low": float(response["low_24h"]),
-            "last_price": float(response["last"]),
-            "base_volume": float(response["volume_24h_base"]),
-            "quote_volume": float(response["volume_24h_quote"]),
-            "price_change": None,  # Not yet implemented
-            "price_change_percent": float(response["change_percentage"]) / 100,
-            "raw_data": response,
-        }
-
-    def parse_perp_ticker(self, response: dict, info: dict) -> dict:
-        return {
-            "symbol": response["contract"],
-            "open_time": None,  # Not yet implemented
-            "close_time": None,  # Not yet implemented
-            "open": None,  # Not yet implemented
-            "high": float(response["high_24h"]),
-            "low": float(response["low_24h"]),
-            "last_price": float(response["last"]),
-            "base_volume": float(response["volume_24h_base"]),
-            "quote_volume": float(response["volume_24h_quote"]),
-            "price_change": None,  # Not yet implemented
-            "price_change_percent": float(response["change_percentage"]) / 100,
-            "raw_data": response,
+            "timestamp": self.get_timestamp(),
+            "instrument_id": self.parse_unified_id(info),
+            "open_time": None,
+            "close_time": self.get_timestamp(),
+            "open": None,
+            "high": self.parse_str(data["high_24h"], float),
+            "low": self.parse_str(data["low_24h"], float),
+            "last": self.parse_str(data["last"], float),
+            "base_volume": self.parse_str(data["base_volume" if market_type == "spot" else "volume_24h_base"], float),
+            "quote_volume": self.parse_str(
+                data["quote_volume" if market_type == "spot" else "volume_24h_quote"], float
+            ),
+            "price_change": None,
+            "price_change_percent": self.parse_str(data["change_percentage"], float) / 100,
+            "raw_data": data,
         }
 
     def get_market_type(self, info: str) -> str:
@@ -276,3 +242,8 @@ class GateioParser(Parser):
         if interval not in self.INTERVAL_MAP:
             raise ValueError(f"Invalid interval. {interval}. Must be one of {list(self.INTERVAL_MAP.keys())}")
         return self.INTERVAL_MAP[interval]
+
+    def parse_raw_ticker(self, response: dict, market_type: str, info: dict) -> dict:
+        response = self.check_response(response)
+        data = response["data"][0]
+        return self.parse_ticker(data, market_type, info)

@@ -8,6 +8,7 @@ from dotenv import load_dotenv
 from cex_adaptors.binance import Binance
 from cex_adaptors.bitget import Bitget
 from cex_adaptors.bybit import Bybit
+from cex_adaptors.gateio import Gateio
 from cex_adaptors.htx import Htx
 from cex_adaptors.kucoin import Kucoin
 from cex_adaptors.okx import Okx
@@ -415,6 +416,41 @@ class TestBitget(IsolatedAsyncioTestCase):
         return True
 
 
+class TestGateio(IsolatedAsyncioTestCase):
+    async def asyncSetUp(self):
+        self.gateio = Gateio()
+        await self.gateio.sync_exchange_info()
+
+    async def asyncTearDown(self):
+        await self.gateio.close()
+
+    async def test_get_tickers(self):
+        spot = await self.gateio.get_tickers("spot")
+        self.assertTrue(spot)
+
+        perp = await self.gateio.get_tickers("perp")
+        self.assertTrue(perp)
+
+        future = await self.gateio.get_tickers("futures")
+        self.assertTrue(future)
+
+        tickers = await self.gateio.get_tickers()
+        self.assertTrue(tickers)
+
+        return
+
+    async def test_get_ticker(self):
+        spot = "BTC/USDT:USDT"
+        perp = "BTC/USDT:USDT-PERP"
+        future = [k for k in self.gateio.exchange_info if self.gateio.exchange_info[k]["is_futures"]][0]
+
+        for i in [spot, perp, future]:
+            ticker = await self.gateio.get_ticker(i)
+            self.assertTrue(ticker)
+
+        return
+
+
 class TestBybit(IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
         self.bybit_public = Bybit()
@@ -517,6 +553,7 @@ class TestOutputStructure(IsolatedAsyncioTestCase):
         self.bitget_public = Bitget()
         self.bybit_public = Bybit()
         self.htx_public = Htx()
+        self.gateio_public = Gateio()
         self.exchange_list = [
             self.okx_public,
             self.binace_public,
@@ -524,6 +561,7 @@ class TestOutputStructure(IsolatedAsyncioTestCase):
             self.bitget_public,
             self.bybit_public,
             self.htx_public,
+            self.gateio_public,
         ]
 
         for i in self.exchange_list:

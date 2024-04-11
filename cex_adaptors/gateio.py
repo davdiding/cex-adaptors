@@ -150,3 +150,21 @@ class Gateio(GateioClient):
 
         else:
             raise ValueError("(start, end) or num must be provided")
+
+    async def get_current_funding_rate(self, instrument_id: str) -> dict:
+        if instrument_id not in self.exchange_info:
+            raise ValueError(f"{instrument_id} not in {self.name} exchange info")
+
+        info = self.exchange_info[instrument_id]
+        market_type = self.parser.get_market_type(info)
+
+        method_map = {
+            "futures": self._get_futures_tickers,
+            "perp": self._get_perp_tickers,
+        }
+
+        params = {
+            "contract": info["raw_data"]["name"],
+            "settle": info["settle"].lower(),
+        }
+        return {instrument_id: self.parser.parse_current_funding_rate(await method_map[market_type](**params), info)}

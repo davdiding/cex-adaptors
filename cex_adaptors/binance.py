@@ -24,12 +24,6 @@ class Binance(object):
         await self.linear.close()
         await self.inverse.close()
 
-    @classmethod
-    async def create(cls):
-        instance = cls()
-        instance.exchange_info = await instance.get_exchange_info()
-        return instance
-
     async def sync_exchange_info(self) -> None:
         self.exchange_info = await self.get_exchange_info()
 
@@ -124,6 +118,23 @@ class Binance(object):
 
             return sort_dict(results, ascending=True, num=num)
 
+    async def get_current_funding_rate(self, instrument_id: str) -> dict:
+        if instrument_id not in self.exchange_info:
+            raise ValueError(f"{instrument_id} not found in {self.name} exchange info")
+
+        info = self.exchange_info[instrument_id]
+        market_type = self.parser.get_market_type(info)
+        symbol = info["raw_data"]["symbol"]
+
+        method_map = {
+            "linear": self.linear._get_index_and_mark_price,
+            "inverse": self.inverse._get_index_and_mark_price,
+        }
+
+        params = {"symbol": symbol}
+
+        return {instrument_id: self.parser.parse_current_funding_rate(await method_map[market_type](**params), info)}
+
     async def get_history_funding_rate(
         self, instrument_id: str, start: int = None, end: int = None, num: int = 30
     ) -> list:
@@ -203,8 +214,8 @@ class Binance(object):
 
         exchange_method_map = {
             "spot": self.spot._get_margin_price_index,
-            "linear": self.linear._get_mark_price,
-            "inverse": self.inverse._get_mark_index_price,
+            "linear": self.linear._get_index_and_mark_price,
+            "inverse": self.inverse._get_index_and_mark_price,
         }
 
         return self.parser.parse_index_price(await exchange_method_map[market_type](symbol), info, market_type)
@@ -217,7 +228,10 @@ class Binance(object):
         market_type = self.parser.get_market_type(info)
         symbol = info["raw_data"]["symbol"]
 
-        method_map = {"linear": self.linear._get_mark_price, "inverse": self.inverse._get_mark_index_price}
+        method_map = {
+            "linear": self.linear._get_index_and_mark_price,
+            "inverse": self.inverse._get_index_and_mark_price,
+        }
 
         return self.parser.parse_mark_price(await method_map[market_type](symbol), info, market_type)
 

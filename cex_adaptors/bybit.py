@@ -101,6 +101,20 @@ class Bybit(BybitUnified):
         else:
             raise ValueError("(start, end) or num must be provided")
 
+    async def get_current_funding_rate(self, instrument_id: str):
+        if instrument_id not in self.exchange_info:
+            raise ValueError(f"{instrument_id} not in {self.name} exchange info")
+
+        info = self.exchange_info[instrument_id]
+        _symbol = info["raw_data"]["symbol"]
+        _category = self.parser.get_category(info)
+
+        params = {
+            "symbol": _symbol,
+            "category": _category,
+        }
+        return {instrument_id: self.parser.parse_current_funding_rate(await self._get_ticker(**params), info)}
+
     async def get_history_funding_rate(self, instrument_id: str, start: int = None, end: int = None, num: int = 30):
         if instrument_id not in self.exchange_info:
             raise ValueError(f"{instrument_id} is not supported")
@@ -118,7 +132,7 @@ class Bybit(BybitUnified):
             query_end = end + 1
             while True:
                 params["endTime"] = query_end
-                result = self.parser.parse_funding_rate(await self._get_funding_rate(**params), info)
+                result = self.parser.parse_funding_rate(await self._get_funding_rate_history(**params), info)
                 results.extend(result)
 
                 # exclude data with same timestamp
@@ -139,7 +153,7 @@ class Bybit(BybitUnified):
         elif num:
             while True:
                 params.update({"endTime": query_end} if query_end else {})
-                result = self.parser.parse_funding_rate(await self._get_funding_rate(**params), info)
+                result = self.parser.parse_funding_rate(await self._get_funding_rate_history(**params), info)
 
                 results.extend(result)
                 # exclude data with same timestamp

@@ -325,3 +325,16 @@ class BinanceParser(Parser):
             return "inverse"
         else:
             raise Exception("market type not found")
+
+    def parse_current_funding_rate(self, response: dict, info: dict) -> dict:
+        response = self.check_response(response)
+        data = response["data"]
+
+        return {
+            "timestamp": self.parse_str(data["time"], int),
+            "next_funding_time": self.parse_str(data["nextFundingTime"], int),
+            "instrument_id": self.parse_unified_id(info),
+            "market_type": self.parse_unified_market_type(info),
+            "funding_rate": self.parse_str(data["lastFundingRate"], float),
+            "raw_data": data,
+        }

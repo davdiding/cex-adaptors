@@ -349,8 +349,6 @@ class HtxParser(Parser):
 
     def parse_klines(self, response: dict, market_type: str, info: dict) -> dict:
         response = self.check_htx_response(response)
-        if response["code"] != 200:
-            return response
 
         method_map = {
             "spot": self.parse_spot_and_linear_kline,
@@ -408,3 +406,15 @@ class HtxParser(Parser):
                 f"Invalid interval: {interval} in {market_type}, must be one of {list(self.INTERVAL_MAP[market_type])}"
             )
         return self.INTERVAL_MAP[market_type][interval]
+
+    def parse_current_funding_rate(self, response: dict, info: dict) -> dict:
+        response = self.check_htx_response(response)
+        data = response["data"]
+        return {
+            "timestamp": response["timestamp"],
+            "next_funding_time": self.parse_str(data["funding_time"], int),
+            "instrument_id": self.parse_unified_id(info),
+            "market_type": self.parse_unified_market_type(info),
+            "funding_rate": self.parse_str(data["funding_rate"], float),
+            "raw_data": data,
+        }

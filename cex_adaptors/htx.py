@@ -148,3 +148,18 @@ class Htx(object):
 
         else:
             raise ValueError("(start, end) or num must be provided")
+
+    async def get_current_funding_rate(self, instrument_id: str) -> dict:
+        if instrument_id not in self.exchange_info:
+            raise ValueError(f"{instrument_id} not in {self.name} exchange info")
+
+        info = self.exchange_info[instrument_id]
+        market_type = self.parser.get_market_type(info)
+
+        method_map = {
+            "linear": self.futures._get_linear_funding_fee,
+            "inverse_perp": self.futures._get_inverse_perp_funding_fee,
+        }
+
+        params = {"contract_code": info["raw_data"]["contract_code"]}
+        return {instrument_id: self.parser.parse_current_funding_rate(await method_map[market_type](**params), info)}

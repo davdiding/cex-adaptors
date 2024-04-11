@@ -210,7 +210,11 @@ class Okx(OkxUnified):
             raise Exception(f"{instrument_id} not found in exchange_info")
         info = self.exchange_info[instrument_id]
         _instrument_id = info["raw_data"]["instId"]
-        return self.parser.parse_current_funding_rate(await self._get_current_funding_rate(_instrument_id), info)
+        return {
+            instrument_id: self.parser.parse_current_funding_rate(
+                await self._get_current_funding_rate(_instrument_id), info
+            )
+        }
 
     async def get_last_price(self, instrument_id: str) -> dict:
         if instrument_id not in self.exchange_info:

@@ -237,9 +237,11 @@ class Bitget(BitgetUnified):
         _symbol = info["raw_data"]["symbol"]
         _product_type = self.parser.get_product_type(info)
 
-        return self.parser.parse_current_funding_rate(
-            await self._get_derivative_current_funding_rate(_symbol, _product_type), info
-        )
+        return {
+            instrument_id: self.parser.parse_current_funding_rate(
+                await self._get_derivative_current_funding_rate(_symbol, _product_type), info
+            )
+        }
 
     async def get_history_funding_rate(
         self, instrument_id: str, start: int = None, end: int = None, num: int = 30

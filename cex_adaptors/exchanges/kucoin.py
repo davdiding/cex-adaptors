@@ -91,3 +91,6 @@ class KucoinFutures(BaseClient):
 
     async def _get_full_orderbook(self, symbol: str):
         return await self._get(self.futures_base_endpoint + "/api/v1/level2/snapshot", params={"symbol": symbol})
+
+    async def _get_current_funding_rate(self, symbol: str):
+        return await self._get(self.futures_base_endpoint + f"/api/v1/funding-rate/{symbol}/current")

@@ -275,3 +275,15 @@ class BybitParser(Parser):
             "mark_price": float(datas["markPrice"]),
             "raw_data": datas,
         }
+
+    def parse_current_funding_rate(self, response: dict, info: dict) -> dict:
+        response = self.check_response(response)
+        data = response["data"][0]
+        return {
+            "timestamp": response["timestamp"],
+            "next_funding_time": self.parse_str(data["nextFundingTime"], int),
+            "instrument_id": self.parse_unified_id(info),
+            "market_type": self.parse_unified_market_type(info),
+            "funding_rate": self.parse_str(data["fundingRate"], float),
+            "raw_data": data,
+        }

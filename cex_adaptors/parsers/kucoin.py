@@ -303,3 +303,15 @@ class KucoinParser(Parser):
             ],
             "raw_data": data,
         }
+
+    def parse_current_funding_rate(self, response: dict, info: dict) -> dict:
+        response = self.check_response(response)
+        data = response["data"]
+        return {
+            "timestamp": self.parse_str(data["timePoint"], int),
+            "next_funding_time": None,
+            "instrument_id": self.parse_unified_id(info),
+            "market_type": self.parse_unified_market_type(info),
+            "funding_rate": self.parse_str(data["value"], float),
+            "raw_data": data,
+        }

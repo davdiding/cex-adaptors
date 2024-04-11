@@ -221,13 +221,11 @@ class OkxParser(Parser):
         response = self.check_response(resposne)
         data = response["data"][0]
         return {
-            "timestamp": int(data["ts"]),
+            "timestamp": self.parse_str(data["ts"], int),
+            "next_funding_time": self.parse_str(data["nextFundingTime"], int),
             "instrument_id": self.parse_unified_id(info),
-            "market": self._market_type_map[data["instType"]],
-            "funding_time": int(data["fundingTime"]),
-            "funding_rate": float(data["fundingRate"]),
-            "next_funding_time": int(data["nextFundingTime"]),
-            "next_funding_rate": float(data["nextFundingRate"]) if data["nextFundingRate"] else None,
+            "market_type": self._market_type_map[data["instType"]],
+            "funding_rate": self.parse_str(data["fundingRate"], float),
             "raw_data": data,
         }
 

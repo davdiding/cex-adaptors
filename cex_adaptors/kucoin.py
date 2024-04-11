@@ -197,3 +197,16 @@ class Kucoin(object):
 
         else:
             raise ValueError("Invalid parameters. (start, end) or (end, num) or (num) must be provided.")
+
+    async def get_current_funding_rate(self, instrument_id: str) -> dict:
+        if instrument_id not in self.exchange_info:
+            raise ValueError(f"{instrument_id} is not found in {self.name} exchange info.")
+
+        info = self.exchange_info[instrument_id]
+        _symbol = info["raw_data"]["symbol"]
+
+        return {
+            instrument_id: self.parser.parse_current_funding_rate(
+                await self.futures._get_current_funding_rate(_symbol), info
+            )
+        }

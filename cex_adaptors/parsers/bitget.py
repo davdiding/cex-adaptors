@@ -218,12 +218,10 @@ class BitgetParser(Parser):
 
         return {
             "timestamp": response["timestamp"],
-            "instrument_id": self.parse_unified_id(info),
-            "market": self.parse_unified_market_type(info),
-            "funding_time": None,
-            "funding_rate": self.parse_str(data["fundingRate"], float),
             "next_funding_time": None,
-            "next_funding_rate": None,
+            "instrument_id": self.parse_unified_id(info),
+            "market_type": self.parse_unified_market_type(info),
+            "funding_rate": self.parse_str(data["fundingRate"], float),
             "raw_data": data,
         }
 

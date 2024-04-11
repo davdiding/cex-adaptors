@@ -124,11 +124,15 @@ class TestBinance(IsolatedAsyncioTestCase):
         self.assertTrue(exchange_info is not None)
         return
 
-    # Private test
     async def test_get_account_info(self):
         account = await self.binance.get_spot_account_info()
         self.assertTrue(account)
         return
+
+    async def test_get_current_funding_rate(self):
+        instrument_id = "BTC/USDT:USDT-PERP"
+        funding_rate = await self.binance.get_current_funding_rate(instrument_id)
+        self.assertTrue(funding_rate)
 
     async def test_get_funding_rate_with_num(self):
         instrument_id = "BTC/USDT:USDT-PERP"
@@ -243,6 +247,15 @@ class TestHTX(IsolatedAsyncioTestCase):
             self.assertTrue(ticker)
         return
 
+    async def test_get_current_funding_rate(self):
+        linear_perp = "BTC/USDT:USDT-PERP"
+        inverse_perp = "BTC/USD:BTC-PERP"
+
+        for i in [linear_perp, inverse_perp]:
+            funding_rate = await self.htx.get_current_funding_rate(i)
+            self.assertTrue(funding_rate)
+        return
+
 
 class TestKucoin(IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
@@ -312,6 +325,12 @@ class TestKucoin(IsolatedAsyncioTestCase):
 
         self.assertEqual(len(orderbook["asks"]), depth)
         self.assertEqual(len(orderbook["bids"]), depth)
+        return
+
+    async def test_get_current_funding_rate(self):
+        instrument_id = "BTC/USDT:USDT-PERP"
+        funding_rate = await self.kucoin_public.get_current_funding_rate(instrument_id)
+        self.assertTrue(funding_rate)
         return
 
 
@@ -450,6 +469,15 @@ class TestGateio(IsolatedAsyncioTestCase):
 
         return
 
+    async def test_get_current_funding_rate(self):
+        perp = "BTC/USDT:USDT-PERP"
+        inverse = "BTC/USD:BTC-PERP"
+
+        for i in [perp, inverse]:
+            funding_rate = await self.gateio.get_current_funding_rate(i)
+            self.assertTrue(funding_rate)
+        return
+
 
 class TestBybit(IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
@@ -486,6 +514,12 @@ class TestBybit(IsolatedAsyncioTestCase):
             instrument_id=instrument_id, start=start, end=end
         )
         self.assertEqual(len(funding_rate), 7)
+        return
+
+    async def test_get_current_funding_rate(self):
+        instrument_id = "BTC/USDT:USDT-PERP"
+        funding_rate = await self.bybit_public.get_current_funding_rate(instrument_id)
+        self.assertTrue(funding_rate)
         return
 
     async def test_get_open_interest(self):
@@ -545,6 +579,14 @@ class TestOutputStructure(IsolatedAsyncioTestCase):
         "price_change_percent": float,
         "raw_data": dict,
     }
+    current_funding_rate_structure = {
+        "timestamp": int,
+        "next_funding_time": int,
+        "instrument_id": str,
+        "market_type": str,
+        "funding_rate": float,
+        "raw_data": dict,
+    }
 
     async def asyncSetUp(self):
         self.okx_public = Okx()
@@ -598,4 +640,37 @@ class TestOutputStructure(IsolatedAsyncioTestCase):
                         self.assertIsInstance(
                             value, self.ticker_structure[key], msg=f"{exchange.name} {instrument_id} {key} {value}"
                         )
+        return
+
+    async def test_current_funding_rate_structure(self):
+        """
+        Test if the output of get_current_funding_rate() has the correct structure.
+        1. return should be a nested dictionary with instrument_id as the first key
+        2. all the keys in the output should be the same
+        3. all the values should be the correct type
+        """
+
+        instrument_id = "BTC/USDT:USDT-PERP"
+        for exchange in self.exchange_list:
+            result = await exchange.get_current_funding_rate(instrument_id)
+            print(exchange.name, instrument_id, result)
+
+            data = result[instrument_id]
+            self.assertIsInstance(data, dict)
+
+            # check if all the keys are the same
+            self.assertEqual(
+                set(data.keys()),
+                set(self.current_funding_rate_structure.keys()),
+                msg=f"{exchange.name} {instrument_id} {data}",
+            )
+
+            # check if all the values are the correct type if the value is not None
+            for key, value in data.items():
+                if value:
+                    self.assertIsInstance(
+                        value,
+                        self.current_funding_rate_structure[key],
+                        msg=f"{exchange.name} {instrument_id} {key} {value}",
+                    )
         return

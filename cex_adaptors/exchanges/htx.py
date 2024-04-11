@@ -83,3 +83,11 @@ class HtxFutures(BaseClient):
             params["size"] = limit
 
         return await self._get(self.base_endpoint + "/market/history/kline", params=params)
+
+    async def _get_linear_funding_fee(self, contract_code: str):
+        params = {"contract_code": contract_code}
+        return await self._get(self.base_endpoint + "/linear-swap-api/v1/swap_funding_rate", params=params)
+
+    async def _get_inverse_perp_funding_fee(self, contract_code: str):
+        params = {"contract_code": contract_code}
+        return await self._get(self.base_endpoint + "/swap-api/v1/swap_funding_rate", params=params)

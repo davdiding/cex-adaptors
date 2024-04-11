@@ -247,3 +247,15 @@ class GateioParser(Parser):
         response = self.check_response(response)
         data = response["data"][0]
         return self.parse_ticker(data, market_type, info)
+
+    def parse_current_funding_rate(self, response: dict, info: dict) -> dict:
+        response = self.check_response(response)
+        data = response["data"][0]
+        return {
+            "timestamp": self.get_timestamp(),
+            "next_funding_time": None,  # not yet implemented
+            "instrument_id": self.parse_unified_id(info),
+            "market_type": self.parse_unified_market_type(info),
+            "funding_rate": self.parse_str(data["funding_rate"], float),
+            "raw_data": data,
+        }

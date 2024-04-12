@@ -1,9 +1,9 @@
-from .exchanges.gateio import GateioClient
+from .exchanges.gateio import GateioUnified
 from .parsers.gateio import GateioParser
 from .utils import sort_dict
 
 
-class Gateio(GateioClient):
+class Gateio(GateioUnified):
     name = "gateio"
 
     PERP_SETTLE = ["btc", "usdt", "usd"]
@@ -168,3 +168,24 @@ class Gateio(GateioClient):
             "settle": info["settle"].lower(),
         }
         return {instrument_id: self.parser.parse_current_funding_rate(await method_map[market_type](**params), info)}
+
+    async def get_history_funding_rate(
+        self, instrument_id: str, start: int = None, end: int = None, num: int = None
+    ) -> list:
+        if instrument_id not in self.exchange_info:
+            raise ValueError(f"{instrument_id} not in {self.name} exchange info")
+
+        info = self.exchange_info[instrument_id]
+
+        params = {"contract": info["raw_data"]["name"], "settle": info["settle"].lower(), "limit": 1000}
+
+        results = self.parser.parse_history_funding_rate(await self._get_futures_funding_rate_history(**params), info)
+
+        if start and end:
+            return sorted(
+                [v for v in results if start <= v["timestamp"] <= end], key=lambda x: x["timestamp"], reverse=False
+            )
+        elif num:
+            return sorted(results, key=lambda x: x["timestamp"], reverse=False)[-num:]
+        else:
+            raise ValueError("(start, end) or num must be provided")

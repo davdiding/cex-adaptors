@@ -205,9 +205,9 @@ class BinanceParser(Parser):
         results = []
         for data in datas:
             result = {
-                "timestamp": self.parse_str(data["fundingTime"], int),
+                "timestamp": int(round(self.parse_str(data["fundingTime"], int) / 1000)) * 1000,
                 "instrument_id": self.parse_unified_id(info),
-                "market": self.parse_unified_market_type(info),
+                "market_type": self.parse_unified_market_type(info),
                 "funding_rate": self.parse_str(data["fundingRate"], float),
                 "realized_rate": None,
                 "raw_data": data,

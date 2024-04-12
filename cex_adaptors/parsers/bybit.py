@@ -183,13 +183,18 @@ class BybitParser(Parser):
         response = self.check_response(response)
         datas = response["data"]
 
+        instrument_id = self.parse_unified_id(info)
+        market_type = self.parse_unified_market_type(info)
+
         results = []
         for data in datas:
             results.append(
                 {
                     "timestamp": self.parse_str(data["fundingRateTimestamp"], int),
-                    "instrument_id": self.parse_unified_id(info),
+                    "instrument_id": instrument_id,
+                    "market_type": market_type,
                     "funding_rate": self.parse_str(data["fundingRate"], float),
+                    "realized_rate": self.parse_str(data["fundingRate"], float),
                     "raw_data": data,
                 }
             )

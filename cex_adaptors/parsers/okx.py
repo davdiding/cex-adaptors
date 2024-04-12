@@ -207,18 +207,18 @@ class OkxParser(Parser):
         for data in datas:
             results.append(
                 {
-                    "timestamp": int(data["fundingTime"]),
+                    "timestamp": self.parse_str(data["fundingTime"], int),
                     "instrument_id": self.parse_unified_id(info),
-                    "market": self._market_type_map[data["instType"]],
-                    "funding_rate": float(data["fundingRate"]),
-                    "realized_rate": float(data["realizedRate"]),
+                    "market_type": self.parse_unified_market_type(info),
+                    "funding_rate": self.parse_str(data["fundingRate"], float),
+                    "realized_rate": self.parse_str(data["realizedRate"], float),
                     "raw_data": data,
                 }
             )
         return results
 
-    def parse_current_funding_rate(self, resposne: dict, info: dict) -> dict:
-        response = self.check_response(resposne)
+    def parse_current_funding_rate(self, response: dict, info: dict) -> dict:
+        response = self.check_response(response)
         data = response["data"][0]
         return {
             "timestamp": self.parse_str(data["ts"], int),

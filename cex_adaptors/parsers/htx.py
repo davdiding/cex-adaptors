@@ -418,3 +418,22 @@ class HtxParser(Parser):
             "funding_rate": self.parse_str(data["funding_rate"], float),
             "raw_data": data,
         }
+
+    def parse_history_funding_rate(self, response: dict, info: dict) -> list:
+        response = self.check_htx_response(response)
+        datas = response["data"]["data"]
+
+        instrument_id = self.parse_unified_id(info)
+        market_type = self.parse_unified_market_type(info)
+
+        return [
+            {
+                "timestamp": self.parse_str(data["funding_time"], int),
+                "instrument_id": instrument_id,
+                "market_type": market_type,
+                "funding_rate": self.parse_str(data["funding_rate"], float),
+                "realized_rate": self.parse_str(data["realized_rate"], float),
+                "raw_data": data,
+            }
+            for data in datas
+        ]

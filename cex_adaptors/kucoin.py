@@ -210,3 +210,62 @@ class Kucoin(object):
                 await self.futures._get_current_funding_rate(_symbol), info
             )
         }
+
+    async def get_history_funding_rate(
+        self, instrument_id: str, start: int = None, end: int = None, num: int = None
+    ) -> list:
+        if instrument_id not in self.exchange_info:
+            raise ValueError(f"{instrument_id} is not found in {self.name} exchange info.")
+
+        info = self.exchange_info[instrument_id]
+        _symbol = info["raw_data"]["symbol"]
+
+        params = {"symbol": _symbol}
+
+        results = []
+        query_end = end if end else self.parser.get_timestamp()
+        query_start = start if start else query_end - 10 * 365 * 24 * 60 * 60 * 1000
+        implied_limit = 100
+        if start and end:
+            while True:
+                params.update({"to": query_end, "_from": query_start})
+                result = self.parser.parse_history_funding_rate(
+                    await self.futures._get_public_funding_history(**params), info
+                )
+                results.extend(result)
+
+                # exclude data with same timestamp
+                results = list({v["timestamp"]: v for v in results}.values())
+
+                if len(result) < implied_limit:
+                    break
+
+                query_end = min([v["timestamp"] for v in result])
+
+                if min([v["timestamp"] for v in results]) < start:
+                    break
+                continue
+
+            return sorted(
+                [v for v in results if start <= v["timestamp"] <= end], key=lambda x: x["timestamp"], reverse=False
+            )
+        elif num:
+            while True:
+                params.update({"to": query_end, "_from": query_start})
+                result = self.parser.parse_history_funding_rate(
+                    await self.futures._get_public_funding_history(**params), info
+                )
+                results.extend(result)
+
+                # exclude data with same timestamp
+                results = list({v["timestamp"]: v for v in results}.values())
+
+                if len(result) < implied_limit or len(results) >= num:
+                    break
+
+                query_end = min([v["timestamp"] for v in results])
+                continue
+            return sorted(results, key=lambda x: x["timestamp"], reverse=False)[-num:]
+
+        else:
+            raise ValueError("(start, end) or num must be provided")

@@ -1,4 +1,4 @@
-from .exchanges.htx import HtxFutures, HtxUnified
+from .exchanges.htx import HtxFutures, HtxSpot
 from .parsers.htx import HtxParser
 from .utils import query_dict, sort_dict
 
@@ -7,7 +7,7 @@ class Htx(object):
     name = "htx"
 
     def __init__(self):
-        self.spot = HtxUnified()
+        self.spot = HtxSpot()
         self.futures = HtxFutures()
         self.parser = HtxParser()
         self.exchange_info = {}
@@ -163,3 +163,62 @@ class Htx(object):
 
         params = {"contract_code": info["raw_data"]["contract_code"]}
         return {instrument_id: self.parser.parse_current_funding_rate(await method_map[market_type](**params), info)}
+
+    async def get_history_funding_rate(
+        self, instrument_id: str, start: int = None, end: int = None, num: int = None
+    ) -> list:
+        if instrument_id not in self.exchange_info:
+            raise ValueError(f"{instrument_id} not in {self.name} exchange info")
+
+        info = self.exchange_info[instrument_id]
+        market_type = self.parser.get_market_type(info)
+
+        method_map = {
+            "linear": self.futures._get_linear_history_funding_rate,
+            "inverse_perp": self.futures._get_inverse_perp_history_funding_rate,
+        }
+
+        limit = 50
+        index = 1
+        params = {"contract_code": info["raw_data"]["contract_code"], "page_size": limit}
+
+        results = []
+        if start and end:
+            while True:
+                params.update({"page_index": index})
+                result = self.parser.parse_history_funding_rate(await method_map[market_type](**params), info)
+                results.extend(result)
+
+                # exclude data with same timestamp
+                results = list({v["timestamp"]: v for v in results}.values())
+
+                if len(result) < limit:
+                    break
+
+                query_start = min([v["timestamp"] for v in result])
+                if query_start <= start:
+                    break
+                index += 1
+                continue
+
+            return sorted(
+                [v for v in results if start <= v["timestamp"] <= end], key=lambda x: x["timestamp"], reverse=False
+            )
+
+        elif num:
+            while True:
+                params.update({"page_index": index})
+                result = self.parser.parse_history_funding_rate(await method_map[market_type](**params), info)
+                results.extend(result)
+
+                # exclude data with same timestamp
+                results = list({v["timestamp"]: v for v in results}.values())
+
+                if len(result) < limit or len(results) > num:
+                    break
+
+                index += 1
+                continue
+            return sorted(results, key=lambda x: x["timestamp"], reverse=False)[-num:]
+        else:
+            raise ValueError("(start, end) or num must be provided")

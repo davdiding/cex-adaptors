@@ -229,11 +229,14 @@ class BitgetParser(Parser):
         response = self.check_response(response)
         datas = response["data"]
 
+        instrument_id = self.parse_unified_id(info)
+        market_type = self.parse_unified_market_type(info)
+
         return [
             {
                 "timestamp": self.parse_str(data["fundingTime"], int),
-                "instrument_id": self.parse_unified_id(info),
-                "market": self.parse_unified_market_type(info),
+                "instrument_id": instrument_id,
+                "market_type": market_type,
                 "funding_rate": self.parse_str(data["fundingRate"], float),
                 "realized_rate": self.parse_str(data["fundingRate"], float),
                 "raw_data": data,

@@ -256,6 +256,31 @@ class TestHTX(IsolatedAsyncioTestCase):
             self.assertTrue(funding_rate)
         return
 
+    async def test_get_history_funding_rate_with_num(self):
+        linear_perp = "BTC/USDT:USDT-PERP"
+        inverse_perp = "BTC/USD:BTC-PERP"
+
+        num = 111
+
+        for i in [linear_perp, inverse_perp]:
+            funding_rate = await self.htx.get_history_funding_rate(i, num=num)
+            self.assertEqual(len(funding_rate), num)
+        return
+
+    async def test_get_history_funding_rate_with_timestamp(self):
+        linear_perp = "BTC/USDT:USDT-PERP"
+        inverse_perp = "BTC/USD:BTC-PERP"
+
+        delta = 10
+        start = get_yesterday_timestamp() - delta * 24 * 60 * 60 * 1000
+        end = get_yesterday_timestamp()
+        target_num = 3 * delta + 1
+
+        for i in [linear_perp, inverse_perp]:
+            funding_rate = await self.htx.get_history_funding_rate(i, start=start, end=end)
+            self.assertEqual(len(funding_rate), target_num)
+        return
+
 
 class TestKucoin(IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
@@ -331,6 +356,25 @@ class TestKucoin(IsolatedAsyncioTestCase):
         instrument_id = "BTC/USDT:USDT-PERP"
         funding_rate = await self.kucoin_public.get_current_funding_rate(instrument_id)
         self.assertTrue(funding_rate)
+        return
+
+    async def test_get_history_funding_rate_with_num(self):
+        instrument_id = "BTC/USDT:USDT-PERP"
+        num = 333
+
+        funding_rate = await self.kucoin_public.get_history_funding_rate(instrument_id, num=num)
+        self.assertEqual(len(funding_rate), num)
+        return
+
+    async def test_get_history_funding_rate_with_timestamp(self):
+        instrument_id = "BTC/USDT:USDT-PERP"
+
+        delta = 10
+        start = get_yesterday_timestamp() - delta * 24 * 60 * 60 * 1000
+        end = get_yesterday_timestamp()
+        target_num = 3 * delta + 1
+        funding_rate = await self.kucoin_public.get_history_funding_rate(instrument_id, start=start, end=end)
+        self.assertEqual(len(funding_rate), target_num)
         return
 
 
@@ -478,6 +522,17 @@ class TestGateio(IsolatedAsyncioTestCase):
             self.assertTrue(funding_rate)
         return
 
+    async def test_get_history_funding_rate_with_num(self):
+        perp = "BTC/USDT:USDT-PERP"
+        inverse = "BTC/USD:BTC-PERP"
+
+        num = 111
+
+        for i in [perp, inverse]:
+            funding_rate = await self.gateio.get_history_funding_rate(i, num=num)
+            self.assertEqual(len(funding_rate), num)
+        return
+
 
 class TestBybit(IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
@@ -587,6 +642,14 @@ class TestOutputStructure(IsolatedAsyncioTestCase):
         "funding_rate": float,
         "raw_data": dict,
     }
+    history_funding_rate_structure = {
+        "timestamp": int,
+        "instrument_id": str,
+        "market_type": str,
+        "funding_rate": float,
+        "realized_rate": float,
+        "raw_data": dict,
+    }
 
     async def asyncSetUp(self):
         self.okx_public = Okx()
@@ -673,4 +736,67 @@ class TestOutputStructure(IsolatedAsyncioTestCase):
                         self.current_funding_rate_structure[key],
                         msg=f"{exchange.name} {instrument_id} {key} {value}",
                     )
+        return
+
+    async def test_history_funding_rate_structure(self):
+        """
+        Test if the output of get_history_funding_rate() has the correct structure.
+        In this test will query with (start, end) and num
+        1. return should be a list
+        2. all the sub funding rate should follow the `history_funding_rate_structure`
+        3. all the values should be the correct type
+        4. (start, end) should return days * 3 + 1 funding rate
+        5. num should return num funding rate
+
+        """
+
+        instrument_id = "BTC/USDT:USDT-PERP"
+        num = 77
+
+        delta = 10
+        start = get_yesterday_timestamp() - delta * 24 * 60 * 60 * 1000
+        end = get_yesterday_timestamp()
+        target_num = 3 * delta + 1
+        acceptable_error = -1
+
+        for exchange in self.exchange_list:
+            # (num) test
+            datas = await exchange.get_history_funding_rate(instrument_id, num=num)
+            print(exchange.name, instrument_id, len(datas))
+            self.assertEqual(len(datas), num)
+
+            for data in datas:
+                self.assertEqual(
+                    set(data.keys()),
+                    set(self.history_funding_rate_structure.keys()),
+                    msg=f"{exchange.name} {instrument_id} {data}",
+                )
+
+                for key, value in data.items():
+                    if value:
+                        self.assertIsInstance(
+                            value,
+                            self.history_funding_rate_structure[key],
+                            msg=f"{exchange.name} {instrument_id} {key} {value}",
+                        )
+
+            # (start, end) test
+            datas = await exchange.get_history_funding_rate(instrument_id, start=start, end=end)
+            print(exchange.name, instrument_id, len(datas))
+            self.assertIn(len(datas), [target_num, target_num + acceptable_error])
+
+            for data in datas:
+                self.assertEqual(
+                    set(data.keys()),
+                    set(self.history_funding_rate_structure.keys()),
+                    msg=f"{exchange.name} {instrument_id} {data}",
+                )
+
+                for key, value in data.items():
+                    if value:
+                        self.assertIsInstance(
+                            value,
+                            self.history_funding_rate_structure[key],
+                            msg=f"{exchange.name} {instrument_id} {key} {value}",
+                        )
         return

@@ -94,3 +94,36 @@ class KucoinFutures(BaseClient):
 
     async def _get_current_funding_rate(self, symbol: str):
         return await self._get(self.futures_base_endpoint + f"/api/v1/funding-rate/{symbol}/current")
+
+    async def _get_public_funding_history(self, symbol: str, _from: int, to: int):
+        params = {
+            "symbol": symbol,
+            "from": _from,
+            "to": to,
+        }
+        return await self._get(self.futures_base_endpoint + "/api/v1/contract/funding-rates", params=params)
+
+    async def _get_private_funding_history(
+        self,
+        symbol: str,
+        startAt: int = None,
+        endAt: int = None,
+        reverse: bool = None,
+        offset: int = None,
+        forward: bool = None,
+        maxCount: int = None,
+    ):
+        params = {
+            k: v
+            for k, v in {
+                "symbol": symbol,
+                "startAt": startAt,
+                "endAt": endAt,
+                "reverse": reverse,
+                "offset": offset,
+                "forward": forward,
+                "maxCount": maxCount,
+            }.items()
+            if v is not None
+        }
+        return await self._get(self.futures_base_endpoint + "/api/v1/funding-history", params=params)

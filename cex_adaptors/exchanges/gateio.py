@@ -1,7 +1,7 @@
 from .base import BaseClient
 
 
-class GateioClient(BaseClient):
+class GateioUnified(BaseClient):
     BASE_URL = "https://api.gateio.ws/api/v4"
 
     def __init__(self) -> None:
@@ -67,3 +67,7 @@ class GateioClient(BaseClient):
             params["limit"] = limit
 
         return await self._get(self.base_url + f"/delivery/{settle}/candlesticks", params=params)
+
+    async def _get_futures_funding_rate_history(self, settle: str, contract: str, limit: int = None):
+        params = {k: v for k, v in {"contract": contract, "limit": limit}.items() if v}
+        return await self._get(self.base_url + f"/futures/{settle}/funding_rate", params=params)

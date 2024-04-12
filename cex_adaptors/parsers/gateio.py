@@ -259,3 +259,22 @@ class GateioParser(Parser):
             "funding_rate": self.parse_str(data["funding_rate"], float),
             "raw_data": data,
         }
+
+    def parse_history_funding_rate(self, response: dict, info: dict) -> list:
+        response = self.check_response(response)
+        datas = response["data"]
+
+        instrument_id = self.parse_unified_id(info)
+        market_type = self.parse_unified_market_type(info)
+
+        return [
+            {
+                "timestamp": self.parse_str(data["t"], int) * 1000,
+                "instrument_id": instrument_id,
+                "market_type": market_type,
+                "funding_rate": self.parse_str(data["r"], float),
+                "realized_rate": self.parse_str(data["r"], float),
+                "raw_data": data,
+            }
+            for data in datas
+        ]

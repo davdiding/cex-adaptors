@@ -139,6 +139,31 @@ class Kucoin(object):
             results["asks"] = results["asks"][:depth]
         return results
 
+    async def get_current_candlestick(self, instrument_id: str, interval: str) -> dict:
+        if instrument_id not in self.exchange_info:
+            raise ValueError(f"{instrument_id} is not found in {self.name} exchange info.")
+
+        info = self.exchange_info[instrument_id]
+        _symbol = info["raw_data"]["symbol"]
+        market_type = "spot" if info["is_spot"] else "derivative"
+        _interval = self.parser.get_interval(interval, market_type)
+
+        method_map = {
+            "spot": self.spot._get_klines,
+            "derivative": self.futures._get_klines,
+        }
+
+        params = {
+            "symbol": _symbol,
+            "granularity" if market_type == "derivative" else "type": _interval,
+        }
+
+        return {
+            instrument_id: self.parser.parse_current_candlestick(
+                await method_map[market_type](**params), info, market_type, interval
+            )
+        }
+
     async def get_klines(self, instrument_id: str, interval: str, start: int = None, end: int = None, num: int = None):
         info = self.exchange_info[instrument_id]
         market_type = "spot" if info["is_spot"] else "derivative"

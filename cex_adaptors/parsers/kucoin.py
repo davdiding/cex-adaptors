@@ -336,3 +336,53 @@ class KucoinParser(Parser):
         ]
 
         return results
+
+    def parse_current_candlestick(self, response: dict, info: dict, market_type: str, interval: str) -> dict:
+        response = self.check_response(response)
+        data = response["data"][0]
+
+        result = self.parse_candlestick(data, info, market_type)
+        result.update(
+            {
+                "instrument_id": self.parse_unified_id(info),
+                "market_type": self.parse_unified_market_type(info),
+                "interval": interval,
+            }
+        )
+        return result
+
+    async def parse_history_candlestick(self, response: dict, info: dict, market_type: str, interval: str) -> list:
+        response = self.check_response(response)
+        datas = response["data"]["data"]
+        _market_type = market_type
+
+        instrument_id = self.parse_unified_id(info)
+        market_type = self.parse_unified_market_type(info)
+
+        results = []
+        for data in datas:
+
+            result = self.parse_candlestick(data, info, _market_type)
+            result.update(
+                {
+                    "instrument_id": instrument_id,
+                    "market_type": market_type,
+                    "interval": interval,
+                }
+            )
+            results.append(result)
+
+        return results
+
+    def parse_candlestick(self, data: dict, info: dict, market_type) -> dict:
+        return {
+            "timestamp": self.parse_str(data[0], int) * 1000,
+            "open": self.parse_str(data[1], float),
+            "high": self.parse_str(data[3], float),
+            "low": self.parse_str(data[4], float),
+            "close": self.parse_str(data[2], float),
+            "base_volume": self.parse_str(data[5], float),
+            "quote_volume": self.parse_str(data[6], float) if market_type == "spot" else None,
+            "contract_volume": self.parse_str(data[5], float),
+            "raw_data": data,
+        }

@@ -338,3 +338,30 @@ class BinanceParser(Parser):
             "funding_rate": self.parse_str(data["lastFundingRate"], float),
             "raw_data": data,
         }
+
+    def parse_candlesticks(self, response: dict, info: dict, market_type: str, interval: str) -> any:
+        response = self.check_response(response)
+        datas = response["data"]
+        instrument_id = self.parse_unified_id(info)
+        market_type = self.parse_unified_market_type(info)
+
+        results = []
+
+        for data in datas:
+            results.append(
+                {
+                    "timestamp": self.parse_str(data[0], int),
+                    "instrument_id": instrument_id,
+                    "market_type": market_type,
+                    "interval": interval,
+                    "open": self.parse_str(data[1], float),
+                    "high": self.parse_str(data[2], float),
+                    "low": self.parse_str(data[3], float),
+                    "close": self.parse_str(data[4], float),
+                    "base_volume": self.parse_str(data[5], float),
+                    "quote_volume": self.parse_str(data[7], float),
+                    "contract_volume": self.parse_str(data[5], float),
+                    "raw_data": data,
+                }
+            )
+        return results[0] if len(results) == 1 else results

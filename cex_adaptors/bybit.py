@@ -62,6 +62,22 @@ class Bybit(BybitUnified):
             )
         }
 
+    async def get_current_candlestick(self, instrument_id: str, interval: str) -> dict:
+        if instrument_id not in self.exchange_info:
+            raise ValueError(f"{instrument_id} is not found in {self.name} exchange info.")
+
+        info = self.exchange_info[instrument_id]
+        _symbol = info["raw_data"]["symbol"]
+        _interval = self.parser.get_interval(interval)
+        _category = self.parser.get_category(info)
+        limit = 1
+
+        params = {"symbol": _symbol, "interval": _interval, "limit": limit, "category": _category}
+
+        return {
+            instrument_id: self.parser.parse_candlesticks(await self._get_klines(**params), info, _category, interval)
+        }
+
     async def get_klines(self, instrument_id: str, interval: str, start: int = None, end: int = None, num: int = 30):
         _category = self.parser.get_category(self.exchange_info[instrument_id])
         _symbol = self.exchange_info[instrument_id]["raw_data"]["symbol"]

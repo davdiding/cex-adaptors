@@ -74,6 +74,19 @@ class Okx(OkxUnified):
         info = self.exchange_info[instrument_id]
         return {instrument_id: self.parser.parse_ticker(await self._get_ticker(_instrument_id), market_type, info)}
 
+    async def get_current_candlestick(self, instrument_id: str, interval: str) -> dict:
+        if instrument_id not in self.exchange_info:
+            raise Exception(f"{instrument_id} not found in exchange_info")
+
+        info = self.exchange_info[instrument_id]
+        _symbol = info["raw_data"]["instId"]
+        _interval = self.parser.get_interval(interval)
+        limit = 1
+
+        params = {"instId": _symbol, "bar": _interval, "limit": limit}
+
+        return {instrument_id: self.parser.parse_candlesticks(await self._get_klines(**params), info, interval)}
+
     async def get_klines(self, instrument_id: str, interval: str, start: int = None, end: int = None, num: int = None):
         info = self.exchange_info[instrument_id]
         market_type = self._market_type_map[info["raw_data"]["instType"]]

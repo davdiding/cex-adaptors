@@ -158,6 +158,35 @@ class BybitParser(Parser):
             results[timestamp] = result
         return results
 
+    def parse_candlesticks(self, response: dict, info: dict, market_type: str, interval: str) -> any:
+        response = self.check_response(response)
+        datas = response["data"]
+
+        market = self.parse_unified_market_type(info)
+        instrument_id = self.parse_unified_id(info)
+
+        results = [
+            {
+                "timestamp": self.parse_str(data[0], int),
+                "instrument_id": instrument_id,
+                "market_type": market,
+                "interval": interval,
+                "open": self.parse_str(data[1], float),
+                "high": self.parse_str(data[2], float),
+                "low": self.parse_str(data[3], float),
+                "close": self.parse_str(data[4], float),
+                "base_volume": self.parse_str(data[5], float),
+                "quote_volume": self.parse_str(data[6], float),
+                "contract_volume": (
+                    self.parse_str(data[5], float) / (1 if market_type == "spot" else info["contract_size"])
+                ),
+                "raw_data": data,
+            }
+            for data in datas
+        ]
+
+        return results if len(results) > 1 else results[0]
+
     def get_category(self, info: dict) -> str:
         if info["is_spot"] or info["is_margin"]:
             return "spot"

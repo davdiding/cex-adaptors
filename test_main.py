@@ -721,7 +721,7 @@ class TestOutputStructure(IsolatedAsyncioTestCase):
         "realized_rate": float,
         "raw_data": dict,
     }
-    current_candlesticks_structure = {
+    candlesticks_structure = {
         "timestamp": int,
         "instrument_id": str,
         "market_type": str,
@@ -915,7 +915,7 @@ class TestOutputStructure(IsolatedAsyncioTestCase):
                 # check if all the keys are the same
                 self.assertEqual(
                     set(data.keys()),
-                    set(self.current_candlesticks_structure.keys()),
+                    set(self.candlesticks_structure.keys()),
                     msg=f"{exchange.name} {instrument_id} {data}",
                 )
 
@@ -924,7 +924,7 @@ class TestOutputStructure(IsolatedAsyncioTestCase):
                     if value and key != "raw_data":
                         self.assertIsInstance(
                             value,
-                            self.current_candlesticks_structure[key],
+                            self.candlesticks_structure[key],
                             msg=f"{exchange.name} {instrument_id} {key} {value}",
                         )
 
@@ -963,4 +963,76 @@ class TestOutputStructure(IsolatedAsyncioTestCase):
                     f"data: {data}\n"
                     f"info: {info}",
                 )
+        return
+
+    async def test_get_history_candlesticks(self):
+        """
+        Test if the output of get_history_candlesticks() has the correct structure.
+        1. return should be dict of a list, instrument_id as the first key
+        2. all the keys in the output should be the same
+        3. all the values should be the correct type
+        4. test different query method
+            - inputs (num) -> num of the output should be equal to num
+            - inputs (start, end) -> num of the output should be equal to (end - start) / interval
+        """
+
+        delta_days = 5
+        start = get_yesterday_timestamp() - delta_days * 24 * 60 * 60 * 1000
+        end = get_yesterday_timestamp()
+        target_num = delta_days + 1
+
+        num = 111
+
+        interval = "1d"
+
+        for exchange in self.exchange_list:
+            spot = "BTC/USDT:USDT"
+            perp = "BTC/USDT:USDT-PERP"
+            futures = [k for k, v in exchange.exchange_info.items() if v["is_futures"]][0]
+
+            for instrument_id in [spot, perp, futures]:
+                params = {"instrument_id": instrument_id, "interval": interval}
+                # (num) test
+                candlesticks = await exchange.get_history_candlesticks(**params, num=num)
+                datas = candlesticks[instrument_id]
+                print(exchange.name, instrument_id, len(datas))
+
+                self.assertEqual(len(datas), num)
+
+                for data in datas:
+                    self.assertEqual(
+                        set(data.keys()),
+                        set(self.candlesticks_structure.keys()),
+                        msg=f"{exchange.name} {instrument_id} {data}",
+                    )
+
+                    for key, value in data.items():
+                        if value and key != "raw_data":
+                            self.assertIsInstance(
+                                value,
+                                self.candlesticks_structure[key],
+                                msg=f"{exchange.name} {instrument_id} {key} {value}",
+                            )
+
+                # (start, end) test
+                candlesticks = await exchange.get_history_candlesticks(**params, start=start, end=end)
+                datas = candlesticks[instrument_id]
+                print(exchange.name, instrument_id, len(datas))
+
+                self.assertEqual(len(datas), target_num)
+
+                for data in datas:
+                    self.assertEqual(
+                        set(data.keys()),
+                        set(self.candlesticks_structure.keys()),
+                        msg=f"{exchange.name} {instrument_id} {data}",
+                    )
+
+                    for key, value in data.items():
+                        if value and key != "raw_data":
+                            self.assertIsInstance(
+                                value,
+                                self.candlesticks_structure[key],
+                                msg=f"{exchange.name} {instrument_id} {key} {value}",
+                            )
         return

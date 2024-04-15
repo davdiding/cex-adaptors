@@ -81,6 +81,34 @@ class Gateio(GateioUnified):
 
         return {instrument_id: self.parser.parse_raw_ticker(await method_map[market_type](**params), market_type, info)}
 
+    async def get_current_candlestick(self, instrument_id: str, interval: str) -> dict:
+        if instrument_id not in self.exchange_info:
+            raise ValueError(f"{instrument_id} not found in {self.name} exchange info")
+
+        info = self.exchange_info[instrument_id]
+        market_type = self.parser.get_market_type(info)
+        _interval = self.parser.get_interval(interval)
+
+        method_map = {
+            "spot": self._get_spot_klines,
+            "futures": self._get_futures_klines,
+            "perp": self._get_perp_klines,
+        }
+        params = {
+            "symbol": info["raw_data"]["id" if market_type == "spot" else "name"],
+            "interval": _interval,
+            "limit": 1,
+        }
+
+        if market_type in ["futures", "perp"]:
+            params["settle"] = info["settle"].lower()
+
+        return {
+            instrument_id: self.parser.parse_candlesticks(
+                await method_map[market_type](**params), info, market_type, interval
+            )
+        }
+
     async def get_klines(
         self, instrument_id: str, interval: str, start: int = None, end: int = None, num: int = None
     ) -> dict:

@@ -77,6 +77,42 @@ class Htx(object):
 
         return {instrument_id: tickers[instrument_id]}
 
+    async def get_current_candlestick(self, instrument_id: str, interval: str) -> dict:
+        if instrument_id not in self.exchange_info:
+            raise ValueError(f"{instrument_id} not in {self.name} exchange info")
+
+        info = self.exchange_info[instrument_id]
+        market_type = self.parser.get_market_type(info)
+        _interval = self.parser.get_interval(interval, market_type)
+
+        symbol_map = {
+            "spot": "sc",
+            "linear": "contract_code",
+            "inverse_futures": "symbol",
+            "inverse_perp": "contract_code",
+        }
+
+        method_map = {
+            "spot": self.spot._get_klines,
+            "linear": self.futures._get_linear_contract_klines,
+            "inverse_futures": self.futures._get_inverse_futures_klines,
+            "inverse_perp": self.futures._get_inverse_perp_klines,
+        }
+
+        params = {
+            "symbol": info["raw_data"][symbol_map[market_type]]
+            if market_type != "inverse_futures"
+            else self.parser.parse_inverse_futures_symbol(info["raw_data"]),
+            "period": _interval,
+            "limit": 1,
+        }
+
+        return {
+            instrument_id: self.parser.parse_candlesticks(
+                await method_map[market_type](**params), info, market_type, interval
+            )
+        }
+
     async def get_klines(self, instrument_id: str, interval: str, start: int = None, end: int = None, num: int = None):
         if instrument_id not in self.exchange_info:
             raise ValueError(f"{instrument_id} not in exchange_info")

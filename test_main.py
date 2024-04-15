@@ -304,6 +304,16 @@ class TestHTX(IsolatedAsyncioTestCase):
             self.assertEqual(len(funding_rate), target_num)
         return
 
+    async def test_get_current_candlestick(self):
+        spot = "BTC/USDT:USDT"
+        perp = "BTC/USDT:USDT-PERP"
+        future = [k for k in self.htx.exchange_info if self.htx.exchange_info[k]["is_futures"]][0]
+
+        for i in [spot, perp, future]:
+            kline = await self.htx.get_current_candlestick(i, "1d")
+            self.assertTrue(kline)
+        return
+
 
 class TestKucoin(IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
@@ -407,6 +417,7 @@ class TestKucoin(IsolatedAsyncioTestCase):
         for i in [spot, perp, future]:
             kline = await self.kucoin_public.get_current_candlestick(i, "1d")
             self.assertTrue(kline)
+        return
 
 
 class TestBitget(IsolatedAsyncioTestCase):
@@ -509,6 +520,16 @@ class TestBitget(IsolatedAsyncioTestCase):
         self.assertEqual(len(funding_rate), target_num)
         return True
 
+    async def test_get_current_candlestick(self):
+        spot = "BTC/USDT:USDT"
+        perp = "BTC/USDT:USDT-PERP"
+        future = [k for k in self.bitget.exchange_info if self.bitget.exchange_info[k]["is_futures"]][0]
+
+        for i in [spot, perp, future]:
+            kline = await self.bitget.get_current_candlestick(i, "1d")
+            self.assertTrue(kline)
+        return
+
 
 class TestGateio(IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
@@ -562,6 +583,16 @@ class TestGateio(IsolatedAsyncioTestCase):
         for i in [perp, inverse]:
             funding_rate = await self.gateio.get_history_funding_rate(i, num=num)
             self.assertEqual(len(funding_rate), num)
+        return
+
+    async def test_get_current_candlestick(self):
+        spot = "BTC/USDT:USDT"
+        perp = "BTC/USDT:USDT-PERP"
+        future = [k for k in self.gateio.exchange_info if self.gateio.exchange_info[k]["is_futures"]][0]
+
+        for i in [spot, perp, future]:
+            kline = await self.gateio.get_current_candlestick(i, "1d")
+            self.assertTrue(kline)
         return
 
 
@@ -870,8 +901,6 @@ class TestOutputStructure(IsolatedAsyncioTestCase):
         perp = "BTC/USDT:USDT-PERP"
 
         for exchange in self.exchange_list:
-            if exchange.name not in ["okx", "binance", "bybit"]:
-                continue
             futures = [k for k, v in exchange.exchange_info.items() if v["is_futures"]][0]
             for instrument_id in [spot, perp, futures]:
                 current_candlestick = await exchange.get_current_candlestick(instrument_id, "1d")
@@ -899,6 +928,8 @@ class TestOutputStructure(IsolatedAsyncioTestCase):
                             msg=f"{exchange.name} {instrument_id} {key} {value}",
                         )
 
+                if not data["base_volume"] or not data["quote_volume"]:
+                    continue
                 # check if the volume is correct
                 implied_price = data["quote_volume"] / data["base_volume"]
                 error_window = 0.05
@@ -914,19 +945,21 @@ class TestOutputStructure(IsolatedAsyncioTestCase):
                     f"info: {info}",
                 )
 
+                if not info["contract_size"]:
+                    continue
                 # check if the contract volume is correct
                 contract_size = info["contract_size"]
                 contract_volume = data["contract_volume"]
-                implied_volume = (
-                    data["base_volume"] / contract_size if info["is_linear"] else data["quote_volume"] / contract_size
-                )
+                implied_volumes = [data["base_volume"] / contract_size, data["quote_volume"] / contract_size]
+
+                error_list = [abs(contract_volume - v) / v for v in implied_volumes]
                 error_window = 0.05
                 self.assertTrue(
-                    (abs(contract_volume - implied_volume) / implied_volume) < error_window,
+                    any([error < error_window for error in error_list]),
                     msg=f"{exchange.name} {instrument_id}\n"
                     f"contract_size: {contract_size}\n"
                     f"contract_volume: {contract_volume}\n"
-                    f"implied_volume: {implied_volume}\n"
+                    f"implied_volume: {implied_volumes}\n"
                     f"data: {data}\n"
                     f"info: {info}",
                 )

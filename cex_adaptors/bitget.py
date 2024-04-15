@@ -167,6 +167,36 @@ class Bitget(BitgetUnified):
 
         return orderbook
 
+    async def get_current_candlestick(self, instrument_id: str, interval: str) -> dict:
+        if instrument_id not in self.exchange_info:
+            raise ValueError(f"{instrument_id} not found in {self.name} exchange info")
+
+        info = self.exchange_info[instrument_id]
+        _symbol = info["raw_data"]["symbol"]
+        market_type = self.parser.get_market_type(info)
+        _interval = self.parser.get_interval(interval, market_type)
+        limit = 1
+
+        method_map = {
+            "spot": self._get_spot_candlesticks,
+            "derivative": self._get_derivative_candlesticks,
+        }
+
+        params = {
+            "symbol": _symbol,
+            "granularity": _interval,
+            "limit": limit,
+        }
+
+        if market_type == "derivative":
+            params.update({"productType": self.parser.get_product_type(info)})
+
+        return {
+            instrument_id: self.parser.parse_candlesticks(
+                await method_map[market_type](**params), info, market_type, interval
+            )
+        }
+
     async def get_klines(
         self, instrument_id: str, interval: str, start: int = None, end: int = None, num: int = None
     ) -> dict:

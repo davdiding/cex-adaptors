@@ -381,8 +381,8 @@ class KucoinParser(Parser):
             "high": self.parse_str(data[3], float),
             "low": self.parse_str(data[4], float),
             "close": self.parse_str(data[2], float),
-            "base_volume": self.parse_str(data[5], float),
-            "quote_volume": self.parse_str(data[6], float) if market_type == "spot" else None,
-            "contract_volume": self.parse_str(data[5], float),
+            "base_volume": self.parse_str(data[5], float) if market_type == "spot" else None,
+            "quote_volume": self.parse_str(data[6 if market_type == "spot" else 5], float),
+            "contract_volume": self.parse_str(data[5], float) if market_type == "spot" else None,
             "raw_data": data,
         }

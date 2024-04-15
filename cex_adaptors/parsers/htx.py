@@ -437,3 +437,81 @@ class HtxParser(Parser):
             }
             for data in datas
         ]
+
+    def parse_candlesticks(self, response: dict, info: dict, market_type: str, interval: str) -> any:
+        """
+        - spot :
+        [
+            {
+                'id': 1713110400,
+                'open': 64186.51,
+                'close': 66184.98,
+                'low': 62578.94,
+                'high': 66566.0,
+                'amount': 1187.8846778540208,
+                'vol': 77002399.88436274,
+                'count': 86506
+            }
+        ]
+
+        - linear :
+        {
+            "amount":0.004
+            "close":13076.8
+            "count":1
+            "high":13076.8
+            "id":1603695060
+            "low":13076.8
+            "open":13076.8
+            "trade_turnover":52.3072
+            "vol":4
+        }
+
+        - inverse:
+        {
+            "id":1628652420
+            "open":45875.02
+            "close":45851
+            "low":45850.93
+            "high":45880.01
+            "amount":2.6471133153472475
+            "vol":1214
+            "count":50
+        }
+
+        """
+
+        response = self.check_htx_response(response)
+        datas = response["data"]
+
+        update_ = {
+            "instrument_id": self.parse_unified_id(info),
+            "market_type": self.parse_unified_market_type(info),
+            "interval": interval,
+        }
+
+        results = []
+
+        for data in datas:
+            result = self.parse_candlestick(data, info, market_type)
+            result.update(update_)
+            results.append(result)
+
+        return results if len(results) > 1 else results[0]
+
+    def parse_candlestick(self, data: dict, info: dict, market_type: str) -> dict:
+
+        return {
+            "timestamp": self.parse_str(data["id"], int) * 1000,
+            "open": self.parse_str(data["open"], float),
+            "high": self.parse_str(data["high"], float),
+            "low": self.parse_str(data["low"], float),
+            "close": self.parse_str(data["close"], float),
+            "base_volume": self.parse_str(data["amount"], float),
+            "quote_volume": (
+                self.parse_str(data["vol" if market_type != "linear" else "trade_turnover"], float)
+                * (1 if info["is_linear"] else info["contract_size"])
+            ),
+            "contract_volume": self.parse_str(data["amount" if market_type == "spot" else "vol"], float),
+            "raw_data": data,
+        }

@@ -70,7 +70,7 @@ class GateioParser(Parser):
             "leverage": (lambda x: float(x["leverage_max"])),
             "listing_time": None,
             "expiration_time": None,
-            "contract_size": None,
+            "contract_size": (lambda x: self.parse_str(x["quanto_multiplier"], float)),
             "tick_size": None,
             "min_order_size": None,
             "max_order_size": None,
@@ -99,7 +99,7 @@ class GateioParser(Parser):
             "leverage": 1,  # Not yet implemented
             "listing_time": None,
             "expiration_time": (lambda x: int(x["expire_time"]) * 1000),
-            "contract_size": None,
+            "contract_size": (lambda x: self.parse_str(x["quanto_multiplier"], float)),
             "tick_size": None,
             "min_order_size": None,
             "max_order_size": None,
@@ -177,7 +177,7 @@ class GateioParser(Parser):
             "raw_data": data,
         }
 
-    def get_market_type(self, info: str) -> str:
+    def get_market_type(self, info: dict) -> str:
         if info["is_spot"]:
             return "spot"
         elif info["is_futures"]:
@@ -278,3 +278,64 @@ class GateioParser(Parser):
             }
             for data in datas
         ]
+
+    def parse_candlesticks(self, response: dict, info: dict, market_type: str, interval: str) -> any:
+        response = self.check_response(response)
+        datas = response["data"]
+        udpate_ = {
+            "instrument_id": self.parse_unified_id(info),
+            "market_type": self.parse_unified_market_type(info),
+            "interval": interval,
+        }
+
+        method_map = {
+            "spot": self.parse_spot_candlestick,
+            "futures": self.parse_futures_candlestick,
+            "perp": self.parse_perp_candlestick,
+        }
+
+        results = []
+        for data in datas:
+            result = method_map[market_type](data, info)
+            result.update(udpate_)
+            results.append(result)
+        return results if len(results) > 1 else results[0]
+
+    def parse_spot_candlestick(self, data: list, info: dict) -> dict:
+        return {
+            "timestamp": self.parse_str(data[0], int) * 1000,
+            "open": self.parse_str(data[5], float),
+            "high": self.parse_str(data[3], float),
+            "low": self.parse_str(data[4], float),
+            "close": self.parse_str(data[2], float),
+            "base_volume": self.parse_str(data[6], float),
+            "quote_volume": self.parse_str(data[1], float),
+            "contract_volume": self.parse_str(data[6], float),
+            "raw_data": data,
+        }
+
+    def parse_perp_candlestick(self, data: dict, info: dict) -> dict:
+        return {
+            "timestamp": self.parse_str(data["t"], int) * 1000,
+            "open": self.parse_str(data["o"], float),
+            "high": self.parse_str(data["h"], float),
+            "low": self.parse_str(data["l"], float),
+            "close": self.parse_str(data["c"], float),
+            "base_volume": self.parse_str(data["v"], float) * info["contract_size"],
+            "quote_volume": self.parse_str(data["sum"], float),
+            "contract_volume": self.parse_str(data["v"], float),
+            "raw_data": data,
+        }
+
+    def parse_futures_candlestick(self, data: dict, info: dict) -> dict:
+        return {
+            "timestamp": self.parse_str(data["t"], int) * 1000,
+            "open": self.parse_str(data["o"], float),
+            "high": self.parse_str(data["h"], float),
+            "low": self.parse_str(data["l"], float),
+            "close": self.parse_str(data["c"], float),
+            "base_volume": self.parse_str(data["v"], float) * info["contract_size"],
+            "quote_volume": None,
+            "contract_volume": self.parse_str(data["v"], float),
+            "raw_data": data,
+        }

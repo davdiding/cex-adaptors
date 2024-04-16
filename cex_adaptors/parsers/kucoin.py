@@ -136,40 +136,6 @@ class KucoinParser(Parser):
             results[instrument_id] = result
         return results
 
-    def parse_klines(self, response: dict, info: dict, market_type: str) -> dict:
-        response = self.check_response(response)
-
-        results = {}
-        datas = response["data"]
-        for data in datas:
-            timestamp = int(int(data[0]) * 1000) if len(str(data[0])) == 10 else int(data[0])
-            results[timestamp] = self.parse_kline(data, info, market_type)
-        return results
-
-    def parse_kline(self, response: dict, info: dict, market_type: str) -> dict:
-        if market_type == "spot":
-            return {
-                "open": float(response[1]),
-                "high": float(response[3]),
-                "low": float(response[4]),
-                "close": float(response[2]),
-                "base_volume": float(response[5]),
-                "quote_volume": float(response[6]),
-                "close_time": None,
-                "raw_data": response,
-            }
-        else:
-            return {
-                "open": float(response[1]),
-                "high": float(response[2]),
-                "low": float(response[3]),
-                "close": float(response[4]),
-                "base_volume": float(response[5]),
-                "quote_volume": None,
-                "close_time": None,
-                "raw_data": response,
-            }
-
     def get_interval(self, interval: str, market: str) -> str:
         if market == "spot":
             if interval not in self.SPOT_INTERVAL_MAP:
@@ -351,32 +317,27 @@ class KucoinParser(Parser):
         )
         return result
 
-    async def parse_history_candlestick(self, response: dict, info: dict, market_type: str, interval: str) -> list:
+    def parse_history_candlesticks(self, response: dict, info: dict, market_type: str, interval: str) -> list:
         response = self.check_response(response)
-        datas = response["data"]["data"]
-        _market_type = market_type
+        datas = response["data"]
 
-        instrument_id = self.parse_unified_id(info)
-        market_type = self.parse_unified_market_type(info)
-
+        update_ = {
+            "instrument_id": self.parse_unified_id(info),
+            "market_type": self.parse_unified_market_type(info),
+            "interval": interval,
+        }
         results = []
         for data in datas:
 
-            result = self.parse_candlestick(data, info, _market_type)
-            result.update(
-                {
-                    "instrument_id": instrument_id,
-                    "market_type": market_type,
-                    "interval": interval,
-                }
-            )
+            result = self.parse_candlestick(data, info, market_type)
+            result.update(update_)
             results.append(result)
 
         return results
 
     def parse_candlestick(self, data: dict, info: dict, market_type) -> dict:
         return {
-            "timestamp": self.parse_str(data[0], int) * 1000,
+            "timestamp": self.parse_str(data[0], int) * (1000 if len(str(data[0])) == 10 else 1),
             "open": self.parse_str(data[1], float),
             "high": self.parse_str(data[3], float),
             "low": self.parse_str(data[4], float),

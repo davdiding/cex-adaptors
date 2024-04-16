@@ -1,6 +1,5 @@
 from .exchanges.gateio import GateioUnified
 from .parsers.gateio import GateioParser
-from .utils import sort_dict
 
 
 class Gateio(GateioUnified):
@@ -109,9 +108,9 @@ class Gateio(GateioUnified):
             )
         }
 
-    async def get_klines(
+    async def get_history_candlesticks(
         self, instrument_id: str, interval: str, start: int = None, end: int = None, num: int = None
-    ) -> dict:
+    ) -> list:
         if instrument_id not in self.exchange_info:
             raise ValueError(f"{instrument_id} not found in exchange_info")
 
@@ -142,40 +141,46 @@ class Gateio(GateioUnified):
         if market_type in ["futures", "perp"]:
             params["settle"] = info["settle"].lower()
 
-        results = {}
+        results = []
         query_end = None
         if start and end:
-            query_end = str(end)[:10]
+            query_end = str(int(str(end)[:10]) + 1)
             while True:
                 params.update({"end": query_end})
-                result = self.parser.parse_klines(await method_map[market_type](**params), market_type, info)
-                results.update(result)
+                result = self.parser.parse_candlesticks(
+                    await method_map[market_type](**params), info, market_type, interval
+                )
+                results.extend(result)
 
                 if len(result) < limit_map[market_type]:
                     break
 
-                query_end = sorted(list(result.keys()))[0]
+                query_end = min([v["timestamp"] for v in result])
 
                 if query_end < start:
                     break
 
-                query_end = str(query_end)[:10]
+                query_end = str(int(str(query_end)[:10]) + 1)
                 continue
 
-            return {k: v for k, v in results.items() if start <= k <= end}
+            return sorted(
+                [v for v in results if start <= v["timestamp"] <= end], key=lambda x: x["timestamp"], reverse=False
+            )
 
         elif num:
             while True:
                 params.update({"end": query_end} if query_end else {})
-                result = self.parser.parse_klines(await method_map[market_type](**params), market_type, info)
-                results.update(result)
+                result = self.parser.parse_candlesticks(
+                    await method_map[market_type](**params), info, market_type, interval
+                )
+                results.extend(result)
 
                 if len(result) < limit_map[market_type] or len(results) >= num:
                     break
-                query_end = str(sorted(list(result.keys()))[0])[:10]
+                query_end = str(int(str(min([v["timestamp"] for v in result]))[:10]) + 1)
 
-            return sort_dict(results, ascending=True, num=num)
-
+                continue
+            return sorted(results, key=lambda x: x["timestamp"], reverse=False)[-num:]
         else:
             raise ValueError("(start, end) or num must be provided")
 

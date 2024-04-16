@@ -147,17 +147,6 @@ class BybitParser(Parser):
             raise ValueError(f"Invalid interval: {interval}")
         return self.INTERVAL_MAP[interval]
 
-    def parse_klines(self, response: dict) -> dict:
-        response = self.check_response(response)
-
-        results = {}
-        datas = response["data"]
-        for data in datas:
-            result = self.parse_kline(data)
-            timestamp = int(data[0])
-            results[timestamp] = result
-        return results
-
     def parse_candlesticks(self, response: dict, info: dict, market_type: str, interval: str) -> any:
         response = self.check_response(response)
         datas = response["data"]
@@ -196,17 +185,6 @@ class BybitParser(Parser):
             return "inverse"
         else:
             raise ValueError(f"Invalid market type: {info}")
-
-    def parse_kline(self, response: dict) -> dict:
-        return {
-            "open": float(response[1]),
-            "high": float(response[2]),
-            "low": float(response[3]),
-            "close": float(response[4]),
-            "base_volume": float(response[5]),
-            "quote_volume": float(response[6]),
-            "raw_data": response,
-        }
 
     def parse_funding_rate(self, response: dict, info: dict) -> list:
         response = self.check_response(response)

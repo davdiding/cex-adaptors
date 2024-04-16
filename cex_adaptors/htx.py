@@ -1,6 +1,6 @@
 from .exchanges.htx import HtxFutures, HtxSpot
 from .parsers.htx import HtxParser
-from .utils import query_dict, sort_dict
+from .utils import query_dict
 
 
 class Htx(object):
@@ -113,9 +113,11 @@ class Htx(object):
             )
         }
 
-    async def get_klines(self, instrument_id: str, interval: str, start: int = None, end: int = None, num: int = None):
+    async def get_history_candlesticks(
+        self, instrument_id: str, interval: str, start: int = None, end: int = None, num: int = None
+    ) -> list:
         if instrument_id not in self.exchange_info:
-            raise ValueError(f"{instrument_id} not in exchange_info")
+            raise ValueError(f"{instrument_id} not in {self.name} exchange info")
 
         info = self.exchange_info[instrument_id]
         market_type = self.parser.get_market_type(info)
@@ -149,38 +151,47 @@ class Htx(object):
             "period": _interval,
             "limit": limit_map[market_type],
         }
-        results = {}
+        results = []
         query_end = None
         if start and end and market_type != "spot":
             query_end = end
             while True:
                 params["end"] = str(query_end)[:10]
-                result = self.parser.parse_klines(await method_map[market_type](**params), market_type, info)
-                results.update(result)
+                result = self.parser.parse_candlesticks(
+                    await method_map[market_type](**params), info, market_type, interval
+                )
+                results.extend(result)
 
-                temp_end = str(sorted(list(result.keys()))[0])[:10]
+                # exclude datas with same timestamp
+                results = list({v["timestamp"]: v for v in results}.values())
+
+                temp_end = str(min([v["timestamp"] for v in result]))[:10]
                 if len(result) < limit_map[market_type] or temp_end == query_end:
                     break
 
                 query_end = temp_end  # get the earliest timestamp in 10 digits
                 if query_end <= start:
                     break
-            return {k: v for k, v in results.items() if start <= int(k) <= end}
+            return sorted(
+                [v for v in results if start <= v["timestamp"] <= end], key=lambda x: x["timestamp"], reverse=False
+            )
 
         elif num:
             while True:
                 params.update({"end": query_end} if query_end else {})
-                result = self.parser.parse_klines(await method_map[market_type](**params), market_type, info)
-                results.update(result)
+                result = self.parser.parse_candlesticks(
+                    await method_map[market_type](**params), info, market_type, interval
+                )
+                results.extend(result)
 
-                temp_end = str(sorted(list(result.keys()))[0])[:10]
+                temp_end = str(min([v["timestamp"] for v in result]))[:10]
                 if len(result) < limit_map[market_type] or temp_end == query_end:
                     break
 
                 query_end = temp_end  # get the earliest timestamp in 10 digits
                 if len(results) >= num:
                     break
-            return sort_dict(results, ascending=True, num=num)
+            return sorted(results, key=lambda x: x["timestamp"], reverse=False)[-num:]
 
         else:
             raise ValueError("(start, end) or num must be provided")

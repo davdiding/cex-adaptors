@@ -36,17 +36,3 @@ def nested_query_dict(dictionary: dict, key: str, query: str) -> dict:
 
     queried_dict = query_dict(new_dict, query)
     return {key: dictionary[key] for key in queried_dict.keys()}
-
-
-def sort_dict(dictionary: dict, ascending: bool = True, num: int = None) -> dict:
-    """
-    Sort a dictionary by its values
-    :param dictionary: dictionary to sort
-    :param ascending: ascending or descending
-    :param num: number of items to return
-    :return: sorted dictionary
-    """
-    df = pd.DataFrame(dictionary).T.reset_index().sort_values(by="index", ascending=ascending).set_index("index")
-    if num:
-        df = df.iloc[-num:]
-    return df.to_dict(orient="index")

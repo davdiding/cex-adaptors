@@ -176,29 +176,6 @@ class OkxParser(Parser):
             results[instrument_id] = self.parse_ticker(data, market_type, info)
         return results
 
-    @staticmethod
-    def parse_kline(response: dict, market_type: str) -> dict:
-        return {
-            "open": float(response[1]),
-            "high": float(response[2]),
-            "low": float(response[3]),
-            "close": float(response[4]),
-            "base_volume": float(response[6] if market_type != "spot" else response[5]),
-            "quote_volume": float(response[7]),
-            "raw_data": response,
-        }
-
-    def parse_klines(self, response: dict, market_type: str) -> dict:
-        response = self.check_response(response)
-
-        datas = response["data"]
-        results = {}
-        for data in datas:
-            result = self.parse_kline(data, market_type)
-            timestamp = int(data[0])
-            results[timestamp] = result
-        return results
-
     def parse_funding_rates(self, response: dict, info: dict) -> list:
         response = self.check_response(response)
         datas = response["data"]

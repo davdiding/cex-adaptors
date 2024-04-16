@@ -1,17 +1,18 @@
-# cex_services
+# cex-adaptors
 This package is designed for interacting with many crypto centralized exchanges. Currently only support **public API endpoints** in Version `1.0.x`. Will add private API endpoints in version `2.0.x`.
 
 ## Getting started
 use ```pip install cex-adaptor``` to install the package.
 
 ## Usage
-After installing the package, you can use the following code start the service.
+After installing the package, you can use the following code start using the adaptors.
 **All the codes is written in async mode.**
 ```python
-from cex_services.binance import Binance
+from cex_adaptors.binance import Binance
 import asyncio
 async def main():
-    binance = await Binance.create()
+    binance = Binance()
+    await binance.sync_exchange_info()
     # get exchange info
     print(await binance.get_exchange_info())
 
@@ -22,82 +23,198 @@ if __name__ == "__main__":
     asyncio.run(main())
 ```
 
-## Supported Exchanges
-| Exchange | Version | Public API | Private API |
-|----------|---------|------------|-------------|
-| Binance  | 1.0.1   | Yes        | No          |
-| OKX      | 1.0.1   | Yes        | No          |
-| Bybit    | 1.0.1   | Yes        | No          |
-| Gate.io  | 1.0.1   | Yes        | No          |
-| Kucoin   | 1.0.1   | Yes        | No          |
-| HTX      | 1.0.1   | Yes        | No          |
-
-## Supported API endpoints
-| Endpoint            | Exchanges                                         |
-|---------------------|---------------------------------------------------|
-| `get_exchange_info` | Binance, OKX, Bybit, Gate.io, Kucoin, HTX, Bitget |
-| `get_tickers`       | Binance, OKX, Bybit, Gate.io, Kucoin, HTX, Bitget |
-| `get_klines`        | Binance, OKX                                      |
-
-
 ## Unified function parameters and output format
 <details>
 <summary><strong>1. <code>get_exchange_info</code></strong></summary>
 
 #### Input
-| Parameter     | Required | Default | Description                                  |
-|---------------|----------|---------|----------------------------------------------|
-| `market_type` | No       | `None`  | should be value in `spot`, `perp`, `futures` |
-
 #### Output (Nested Dictionary)
-| Field             | Type    | Description                                                                                                                                     |
-|-------------------|---------|-------------------------------------------------------------------------------------------------------------------------------------------------|
-| `instrument_id`   | `str`   | The key of the dictionary. Format: `{base}/{quote}:{settle}-{delivery}`                                                                         |
-| `active`          | `bool`  | Indicates whether this instrument is currently tradable.                                                                                        |
-| `is_spot`         | `bool`  | Indicates whether this instrument is in the spot market.                                                                                        |
-| `is_margin`       | `bool`  | Indicates whether margin trading is available for this instrument.                                                                              |
-| `is_futures`      | `bool`  | Indicates whether this instrument is in the futures market.                                                                                     |
-| `is_perp`         | `bool`  | Indicates whether this instrument is in the perpetual market.                                                                                   |
-| `is_linear`       | `bool`  | Returns `True` if this instrument is settled in a stable currency.                                                                              |
-| `is_inverse`      | `bool`  | Returns `True` if this instrument is settled in a coin.                                                                                         |
-| `symbol`          | `str`   | The unified symbol of the trading pair. Format: `{base}/{quote}`                                                                                |
-| `base`            | `str`   | The base currency of the instrument.                                                                                                            |
-| `quote`           | `str`   | The quote currency of the instrument.                                                                                                           |
-| `settle`          | `str`   | The settlement currency for the instrument.                                                                                                     |
-| `multiplier`      | `int`   | The multiplier, typically indicating the quantity of the base currency included in one instrument unit.                                         |
-| `leverage`        | `float` | The maximum leverage available for trading.                                                                                                     |
-| `listing_time`    | `int`   | The listing time, represented as a 13-digit integer.                                                                                            |
-| `expiration_time` | `int`   | The expiration time, represented as a 13-digit integer.                                                                                         |
-| `contract_size`   | `float` | The contract size, with a default value of `1`. Indicates the amount of base currency per contract, usually applicable to `perp` and `futures`. |
-| `tick_size`       | `float` | The minimum increment by which the price can change.                                                                                            |
-| `min_order_size`  | `float` | The minimum size for an order.                                                                                                                  |
-| `max_order_size`  | `float` | The maximum size for an order.                                                                                                                  |
-| `raw_data`        | `dict`  | The unprocessed raw data associated with the instrument.                                                                                        |
 </details>
 
 <details>
 <summary><strong>2. <code>get_tickers</code></strong></summary>
 
 #### Input
-| Parameter     | Required | Default | Description                                  |
-|---------------|----------|---------|----------------------------------------------|
-| `market_type` | No       | `None`  | should be value in `spot`, `perp`, `futures` |
+```json
+{
+    "market": "spot"  // must be in "spot", "perp", "futures". If `null` will return all tickers on the exchange
+}
+```
 
 #### Output (nested dict)
-| Field                  | Type    | Description                                                             |
-|------------------------|---------|-------------------------------------------------------------------------|
-| `instrument_id`        | `str`   | The key of the dictionary. Format: `{base}/{quote}:{settle}-{delivery}` |
-| `symbol`               | `str`   | The raw symbol from the exchange.                                       |
-| `open_time`            | `int`   | The opening time of the trading pair, in 13 digits.                     |
-| `close_time`           | `int`   | The closing time of the trading pair, in 13 digits.                     |
-| `open`                 | `float` | The opening price of the trading pair in 24hr.                          |
-| `high`                 | `float` | The highest price of the trading pair in 24hr.                          |
-| `low`                  | `float` | The lowest price of the trading pair in 24hr.                           |
-| `last_price`           | `float` | The last price of the trading pair.                                     |
-| `base_volume`          | `float` | The trading volume of the base currency in 24hr.                        |
-| `quote_volume`         | `float` | The trading volume of the quote currency in 24hr.                       |
-| `price_change`         | `float` | The price change of the trading pair in 24hr.                           |
-| `price_change_percent` | `float` | The price change percentage of the trading pair in 24hr.                |
-| `raw_data`             | `dict`  | The unprocessed raw data associated with the trading pair.              |
+```json
+{
+    "BTC/USDT:USDT" : {
+        "timestamp": 1630000000000,
+        "instrument_id": "BTC/USDT:USDT",
+        "open_time": 1630000000000,
+        "close_time": 1630000000000,
+        "open": 10000.0,
+        "high": 11000.0,
+        "low": 9000.0,
+        "last": 10000.0,
+        "base_volume": 1000.0,
+        "quote_volume": 10000000.0,
+        "price_change": 0.0,  // must in quote currency
+        "price_change_percent": 0.01, // must in percentage, if 0.01 means 1%,
+        "raw_data": {},
+    },
+  // many instrument ticker
+}
+```
+</details>
+
+
+<details>
+<summary><strong>3. <code>get_ticker</code></strong></summary>
+
+#### Input
+```json
+{
+    "instrument_id": "BTC/USDT:USDT"  // must be instrument_id in exchange's exchange info
+}
+```
+
+#### Output (Dictionary)
+```json
+{
+    "BTC/USDT:USDT" : {
+        "timestamp": 1630000000000,
+        "instrument_id": "BTC/USDT:USDT",
+        "open_time": 1630000000000,
+        "close_time": 1630000000000,
+        "open": 10000.0,
+        "high": 11000.0,
+        "low": 9000.0,
+        "last": 10000.0,
+        "base_volume": 1000.0,
+        "quote_volume": 10000000.0,
+        "price_change": 0.0,  // must in quote currency
+        "price_change_percent": 0.01, // must in percentage, if 0.01 means 1%,
+        "raw_data": {},
+    }
+}
+```
+</details>
+
+<details>
+<summary><strong>4. <code>get_current_candlestick</code></strong></summary>
+
+#### Input
+```json
+{
+  "instrument_id": "BTC/USDT:USDT-PERP", // required
+  "interval": "1m", // required, vary from different exchanges
+}
+```
+
+#### Output (List of Dictionary)
+```json
+{
+  "timestamp": 1629350400000, // timestamp in millisecond
+  "interval": "1m",
+  "instrument_id": "BTC/USDT:USDT-PERP",
+  "market_type": "perp", // "spot", "futures", "perp
+  "open": 10000.0, // open price
+  "high": 10100, // high price
+  "low": 9900, // low price
+  "close": 10050, // close price
+  "base_volume": 1000, // volume in base currency
+  "quote_volume": 10000000, // quote volume
+  "contract_volume": 1000, // contract volume
+  "raw_data": {} // raw data from exchange
+}
+```
 
 </details>
+
+<details>
+<summary><strong>5. <code>get_history_candlesticks</code></strong></summary>
+
+#### Input
+```json
+{
+  "instrument_id": "BTC/USDT:USDT-PERP", // required
+  "interval": "1m", // required, vary from different exchanges
+  "start": 1629350400000, // optional, timestamp in millisecond
+  "end": 1629350400000, // optional, timestamp in millisecond
+  "num": 100, // optional, number of data to return
+}
+```
+
+#### Output (List of Dictionary)
+```json
+[
+  {
+    "timestamp": 1629350400000, // timestamp in millisecond
+    "interval": "1m",
+    "instrument_id": "BTC/USDT:USDT-PERP",
+    "market_type": "perp", // "spot", "futures", "perp
+    "open": 10000.0, // open price
+    "high": 10100, // high price
+    "low": 9900, // low price
+    "close": 10050, // close price
+    "base_volume": 1000, // volume in base currency
+    "quote_volume": 10000000, // quote volume
+    "contract_volume": 1000, // contract volume, if is spot then will equal to base_volume
+    "raw_data": {} // raw data from exchange
+  },
+  // many history candlesticks data
+]
+```
+
+
+</details>
+
+<details>
+<summary><strong>6. <code>get_current_funding_rate</code></strong></summary>
+
+#### Input
+```json
+{
+  "instrument_id": "BTC/USDT:USDT-PERP", // required, funding rate only support futures and perp
+}
+```
+#### Output
+```json
+{
+  "BTC/USDT:USDT-PERP": {
+    "timestamp": 1629350400000, // timestamp in millisecond
+    "next_funding_time": 1629350400000, // timestamp in milliseconds
+    "instrument_id": "BTC/USDT:USDT-PERP",
+    "market_type": "perp",
+    "funding_rate": 0.001, // funding rate in percentage, 0.01 means 1%
+    "raw_data": {} // raw data from exchange
+  }
+}
+```
+
+</details>
+
+<details>
+<summary><strong>7. <code>get_history_funding_rate</code></strong></summary>
+
+#### Input
+```json
+{
+  "instrument_id": "BTC/USDT:USDT-PERP", // required, funding rate only support futures and perp
+  "start": 1629350400000, // optional, timestamp in millisecond
+  "end": 1629350400000, // optional, timestamp in millisecond
+  "num": 100, // optional, number of data to return
+}
+```
+**(`start`, `end`)** or **`num`** must be provided, if both provided, use **start** and **end**.
+
+#### Output
+```json
+[
+  {
+    "timestamp": 1629350400000, // timestamp in millisecond
+    "instrument_id": "BTC/USDT:USDT-PERP",
+    "market_type": "perp",
+    "funding_rate": 0.001, // funding rate in percentage, 0.01 means 1%
+    "realized_rate": 0.001, // realized rate in percentage, 0.01 means 1%
+    "raw_data": {} // raw data from exchange
+  }, // many history funding rate data
+]
+```

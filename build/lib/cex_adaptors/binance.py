@@ -3,7 +3,6 @@ from typing import Literal, Optional
 
 from .exchanges.binance import BinanceInverse, BinanceLinear, BinanceSpot
 from .parsers.binance import BinanceParser
-from .utils import sort_dict
 
 tracemalloc.start()
 
@@ -23,12 +22,6 @@ class Binance(object):
         await self.spot.close()
         await self.linear.close()
         await self.inverse.close()
-
-    @classmethod
-    async def create(cls):
-        instance = cls()
-        instance.exchange_info = await instance.get_exchange_info()
-        return instance
 
     async def sync_exchange_info(self) -> None:
         self.exchange_info = await self.get_exchange_info()
@@ -73,11 +66,45 @@ class Binance(object):
         else:
             return results
 
-    async def get_klines(self, instrument_id: str, interval: str, start: int = None, end: int = None, num: int = 500):
-        _symbol = self.exchange_info[instrument_id]["raw_data"]["symbol"]
+    async def get_current_candlestick(self, instrument_id: str, interval: str) -> dict:
+        if instrument_id not in self.exchange_info:
+            raise ValueError(f"{instrument_id} not found in {self.name} exchange info")
+
+        info = self.exchange_info[instrument_id]
+        _symbol = info["raw_data"]["symbol"]
+        _interval = self.parser.get_interval(interval)
+        limit = 1
+        market_type = self.parser.get_market_type(info)
+
+        params = {
+            "symbol": _symbol,
+            "interval": _interval,
+            "limit": limit,
+        }
+
+        method_map = {
+            "spot": self.spot._get_klines,
+            "linear": self.linear._get_klines,
+            "inverse": self.inverse._get_klines,
+        }
+
+        return {
+            instrument_id: self.parser.parse_candlesticks(
+                await method_map[market_type](**params), info, market_type, interval
+            )
+        }
+
+    async def get_history_candlesticks(
+        self, instrument_id: str, interval: str, start: int = None, end: int = None, num: int = 500
+    ) -> list:
+        if instrument_id not in self.exchange_info:
+            raise ValueError(f"{instrument_id} not found in {self.name} exchange info")
+
+        info = self.exchange_info[instrument_id]
+        _symbol = info["raw_data"]["symbol"]
         _interval = self.parser.get_interval(interval)
         limit = 1000
-        market_type = self.parser.get_market_type(self.exchange_info[instrument_id])
+        market_type = self.parser.get_market_type(info)
 
         params = {
             "symbol": _symbol,
@@ -93,36 +120,61 @@ class Binance(object):
 
         query_end = None
 
-        results = {}
+        results = []
         if start and end:
             query_end = end
             while True:
                 params["endTime"] = query_end
-                klines = self.parser.parse_klines(await method_map[market_type](**params), market_type)
-                if not klines:
-                    break
+                result = self.parser.parse_candlesticks(
+                    await method_map[market_type](**params), info, market_type, interval
+                )
+                results.extend(result)
 
-                results.update(klines)
-                query_end = sorted(list(klines.keys()))[0]
-                if len(klines) < limit or query_end <= start:
+                # exclude the datas with same timestamp
+                results = list({v["timestamp"]: v for v in results}.values())
+
+                query_end = min([v["timestamp"] for v in result]) - 1
+                if len(result) < limit or query_end <= start:
                     break
                 continue
-            return sort_dict({k: v for k, v in results.items() if end >= k >= start}, ascending=True)
+            return sorted(
+                [v for v in results if end >= v["timestamp"] >= start], key=lambda x: x["timestamp"], reverse=False
+            )
 
         elif num:
             while True:
                 params.update({"endTime": query_end} if query_end else {})
-                klines = self.parser.parse_klines(
-                    await method_map[market_type](**params),
-                    market_type,
+                result = self.parser.parse_candlesticks(
+                    await method_map[market_type](**params), info, market_type, interval
                 )
-                results.update(klines)
-                if len(klines) < limit or len(results) >= num:
+
+                results.extend(result)
+                results = list({v["timestamp"]: v for v in results}.values())
+
+                if len(result) < limit or len(results) >= num:
                     break
-                query_end = sorted(list(klines.keys()))[0]
+
+                query_end = min([v["timestamp"] for v in result]) - 1
                 continue
 
-            return sort_dict(results, ascending=True, num=num)
+            return sorted(results, key=lambda x: x["timestamp"], reverse=False)[-num:]
+
+    async def get_current_funding_rate(self, instrument_id: str) -> dict:
+        if instrument_id not in self.exchange_info:
+            raise ValueError(f"{instrument_id} not found in {self.name} exchange info")
+
+        info = self.exchange_info[instrument_id]
+        market_type = self.parser.get_market_type(info)
+        symbol = info["raw_data"]["symbol"]
+
+        method_map = {
+            "linear": self.linear._get_index_and_mark_price,
+            "inverse": self.inverse._get_index_and_mark_price,
+        }
+
+        params = {"symbol": symbol}
+
+        return {instrument_id: self.parser.parse_current_funding_rate(await method_map[market_type](**params), info)}
 
     async def get_history_funding_rate(
         self, instrument_id: str, start: int = None, end: int = None, num: int = 30
@@ -185,6 +237,90 @@ class Binance(object):
             return sorted(results, key=lambda x: x["timestamp"], reverse=False)[-num:]
         else:
             raise ValueError("(start, end) or num must be provided")
+
+    async def get_last_price(self, instrument_id: str) -> dict:
+        # use ticker to get last price
+        if instrument_id not in self.exchange_info:
+            raise ValueError(f"{instrument_id} not found in exchange info")
+
+        return self.parser.parse_last_price(await self.get_ticker(instrument_id), instrument_id)
+
+    async def get_index_price(self, instrument_id: str) -> dict:
+        if instrument_id not in self.exchange_info:
+            raise ValueError(f"{instrument_id} not found in exchange info")
+
+        info = self.exchange_info[instrument_id]
+        market_type = self.parser.get_market_type(info)
+        symbol = info["raw_data"]["symbol"]
+
+        exchange_method_map = {
+            "spot": self.spot._get_margin_price_index,
+            "linear": self.linear._get_index_and_mark_price,
+            "inverse": self.inverse._get_index_and_mark_price,
+        }
+
+        return self.parser.parse_index_price(await exchange_method_map[market_type](symbol), info, market_type)
+
+    async def get_mark_price(self, instrument_id: str) -> dict:
+        if instrument_id not in self.exchange_info:
+            raise ValueError(f"{instrument_id} not found in exchange info")
+
+        info = self.exchange_info[instrument_id]
+        market_type = self.parser.get_market_type(info)
+        symbol = info["raw_data"]["symbol"]
+
+        method_map = {
+            "linear": self.linear._get_index_and_mark_price,
+            "inverse": self.inverse._get_index_and_mark_price,
+        }
+
+        return self.parser.parse_mark_price(await method_map[market_type](symbol), info, market_type)
+
+    async def get_open_interest(self, instrument_id: str) -> dict:
+        if instrument_id not in self.exchange_info:
+            raise ValueError(f"{instrument_id} not found in exchange info")
+
+        info = self.exchange_info[instrument_id]
+        market_type = self.parser.get_market_type(info)
+
+        if market_type == "spot":
+            raise ValueError(f"spot do not have open interest. `{instrument_id}`")
+
+        symbol = info["raw_data"]["symbol"]
+        method_map = {
+            "linear": self.linear._get_open_interest,
+            "inverse": self.inverse._get_open_interest,
+        }
+
+        params = {"symbol": symbol}
+        return self.parser.parse_open_interest(await method_map[market_type](**params), info, market_type)
+
+    async def get_history_open_interest(
+        self, instrument_id: str, interval: str, start: int = None, end: int = None, num: int = 500
+    ):
+        return NotImplemented
+
+    async def get_orderbook(self, instrument_id: str, depth: int = None) -> dict:
+        if instrument_id not in self.exchange_info:
+            raise ValueError(f"{instrument_id} not found in exchange info")
+
+        info = self.exchange_info[instrument_id]
+        market_type = self.parser.get_market_type(info)
+        symbol = info["raw_data"]["symbol"]
+        method_map = {
+            "spot": self.spot._get_order_book,
+            "linear": self.linear._get_order_book,
+            "inverse": self.inverse._get_order_book,
+        }
+
+        limit_map = {
+            "spot": 5000,
+            "linear": 1000,
+            "inverse": 1000,
+        }
+
+        params = {"symbol": symbol, "limit": limit_map[market_type]}
+        return self.parser.parse_orderbook(await method_map[market_type](**params), info, market_type, depth=depth)
 
     # Private function
     async def get_spot_account_info(self) -> dict:

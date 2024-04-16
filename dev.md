@@ -1,8 +1,8 @@
 ## Developer documentation
 ### Update package version
 1. Update the version in `setup.py`
-2. use `python3 setup.py sdist bdist_wheel` to build the package
-3. use `twine upload dist/*` to upload the package to pypi
+2. Use `python3 setup.py sdist bdist_wheel` to build the package
+3. Use `twine upload dist/*` to upload the package to pypi
 
 ### Add new exchange
 1. Create new `{exchange_name}.py` file in `cex_adaptors`, `cex_adaptors/exchanges` and `cex_adaptors/parsers` folder.

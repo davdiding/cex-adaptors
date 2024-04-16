@@ -67,185 +67,74 @@ class Okx(OkxUnified):
             return results
 
     async def get_ticker(self, instrument_id: str):
+        if instrument_id not in self.exchange_info:
+            raise Exception(f"{instrument_id} not found in {self.name} exchange_info")
         _instrument_id = self.exchange_info[instrument_id]["raw_data"]["instId"]
         market_type = self._market_type_map[self.exchange_info[instrument_id]["raw_data"]["instType"]]
-        return {instrument_id: self.parser.parse_ticker(await self._get_ticker(_instrument_id), market_type)}
-
-    async def get_klines(self, instrument_id: str, interval: str, start: int = None, end: int = None, num: int = None):
         info = self.exchange_info[instrument_id]
-        market_type = self._market_type_map[info["raw_data"]["instType"]]
+        return {instrument_id: self.parser.parse_ticker(await self._get_ticker(_instrument_id), market_type, info)}
+
+    async def get_current_candlestick(self, instrument_id: str, interval: str) -> dict:
+        if instrument_id not in self.exchange_info:
+            raise Exception(f"{instrument_id} not found in exchange_info")
+
+        info = self.exchange_info[instrument_id]
+        _symbol = info["raw_data"]["instId"]
+        _interval = self.parser.get_interval(interval)
+        limit = 1
+
+        params = {"instId": _symbol, "bar": _interval, "limit": limit}
+
+        return {instrument_id: self.parser.parse_candlesticks(await self._get_klines(**params), info, interval)}
+
+    async def get_history_candlesticks(
+        self, instrument_id: str, interval: str, start: int = None, end: int = None, num: int = None
+    ) -> list:
+        info = self.exchange_info[instrument_id]
         _instrument_id = info["raw_data"]["instId"]
         _interval = self.parser.get_interval(interval)
         limit = 300
 
         params = {"instId": _instrument_id, "bar": _interval, "limit": limit}
 
-        results = {}
+        results = []
         if start and end:
-            query_end = end
+            query_end = end + 1
             while True:
                 params.update({"after": query_end})
-                datas = self.parser.parse_klines(
-                    await self._get_klines(**params),
-                    market_type,
-                )
-                results.update(datas)
+                datas = self.parser.parse_candlesticks(await self._get_klines(**params), info, interval)
+                results.extend(datas)
+
+                # exclude same timestamp datas
+                results = list({v["timestamp"]: v for v in results}.values())
 
                 if not datas or len(datas) < limit:
                     break
-                query_end = sorted(datas.keys())[0]
+                query_end = min([v["timestamp"] for v in datas]) + 1
                 if query_end < start:
                     break
-            results = {k: v for k, v in results.items() if start <= k <= end}
-
-        elif start:
+            results = sorted(
+                [v for v in results if start <= v["timestamp"] <= end], key=lambda x: x["timestamp"], reverse=False
+            )
+        elif num:
             query_end = end
             while True:
                 params.update({"after": query_end} if query_end else {})
-                datas = self.parser.parse_klines(
-                    await self._get_klines(**params),
-                    market_type,
-                )
-                results.update(datas)
-                if not datas or len(datas) < limit:
-                    break
-                query_end = sorted(datas.keys())[0]
-                if query_end < start:
-                    break
-            results = {k: v for k, v in results.items() if k >= start}
-        elif end and num:
-            query_end = end
-            query_num = min(num, limit)
-            while True:
-                params.update({"after": query_end, "limit": query_num})
-                datas = self.parser.parse_klines(
-                    await self._get_klines(**params),
-                    market_type,
-                )
-                results.update(datas)
-                if not datas or len(datas) < limit:
-                    break
-                query_num = min(num - len(results), limit)
-                query_end = sorted(datas.keys())[0]
-            results = {k: v for k, v in results.items() if k <= end}
-        elif num:
-            query_end = end
-            query_num = min(num, limit)
-            while True:
-                params.update({"after": query_end, "limit": query_num} if query_end else {"limit": query_num})
-                datas = self.parser.parse_klines(
-                    await self._get_klines(**params),
-                    market_type,
-                )
-                results.update(datas)
-                if not datas or len(datas) < limit:
-                    break
-                query_num = min(num - len(results), limit)
-                query_end = sorted(datas.keys())[0]
+                datas = self.parser.parse_candlesticks(await self._get_klines(**params), info, interval)
+                results.extend(datas)
 
-            results = dict(sorted(results.items(), key=lambda x: x[0])[-num:])
+                # exclude same timestamp datas
+                results = list({v["timestamp"]: v for v in results}.values())
+
+                if not datas or len(datas) < limit:
+                    break
+
+                query_end = min([v["timestamp"] for v in datas])
+                continue
+
+            results = sorted(results, key=lambda x: x["timestamp"], reverse=False)[-num:]
         else:
             raise Exception("invalid params")
-
-        return results
-
-    async def get_balance(self):
-        return self.parser.parse_balance(await self._get_balance())
-
-    async def get_positions(self):
-        return self.parser.parse_positions(await self._get_positions(), self.exchange_info)
-
-    async def get_account_info(self):
-        return self.parser.parse_account_config(await self._get_account_config())
-
-    async def place_market_order(self, instrument_id: str, side: str, volume: float, in_quote: bool = False):
-        if instrument_id not in self.exchange_info:
-            raise Exception(f"{instrument_id} not found in exchange_info")
-
-        info = self.exchange_info[instrument_id]
-        _instrument_id = info["raw_data"]["instId"]
-        _order_type = "market"
-
-        order_id = self.parser.parse_order_id(
-            await self._place_order(
-                instId=_instrument_id,
-                side=side,
-                sz=str(volume),
-                ordType=_order_type,
-                tgtCcy="quote_ccy" if in_quote else "base_ccy",
-            )
-        )
-        return self.parser.parse_order_info(await self._get_order_info(_instrument_id, str(order_id)), info)
-
-    async def place_limit_order(
-        self, instrument_id: str, side: str, price: float, volume: float, in_quote: bool = False
-    ):
-        if instrument_id not in self.exchange_info:
-            raise Exception(f"{instrument_id} not found in exchange_info")
-
-        info = self.exchange_info[instrument_id]
-        _instrument_id = info["raw_data"]["instId"]
-        _order_type = "limit"
-
-        order_id = self.parser.parse_order_id(
-            await self._place_order(
-                instId=_instrument_id,
-                side=side,
-                sz=str(volume),
-                px=str(price),
-                ordType=_order_type,
-                tgtCcy="quote_ccy" if in_quote else "base_ccy",
-            )
-        )
-        return self.parser.parse_order_info(await self._get_order_info(_instrument_id, str(order_id)), info)
-
-    async def cancel_order(self, instrument_id: str, order_id: int):
-        if instrument_id not in self.exchange_info:
-            raise Exception(f"{instrument_id} not found in exchange_info")
-        info = self.exchange_info[instrument_id]
-        _instrument_id = info["raw_data"]["instId"]
-        return self.parser.parse_cancel_order(await self._cancel_order(_instrument_id, str(order_id)))
-
-    async def get_opened_orders(self, market_type: str = None, instrument_id: str = None) -> list:
-        results = []
-        params = {"limit": "100"}
-        if market_type:
-            _market_type = self.market_type_map[market_type]
-            params["instType"] = _market_type
-            results = self.parser.parse_opened_orders(
-                await self._get_opended_orders(**params), infos=self.exchange_info
-            )
-        elif instrument_id:
-            if instrument_id not in self.exchange_info:
-                raise Exception(f"{instrument_id} not found in exchange_info")
-            info = self.exchange_info[instrument_id]
-            _instrument_id = info["raw_data"]["instId"]
-            params["instId"] = _instrument_id
-            results = self.parser.parse_opened_orders(await self._get_opended_orders(**params), info=info)
-        else:
-            raise Exception("market_type or instrument_id must be provided")
-
-        return results
-
-    async def get_history_orders(self, market_type: str = None, instrument_id: str = None) -> list:
-        results = []
-        params = {"limit": "100"}
-
-        if market_type:
-            pass
-        elif instrument_id:
-            if instrument_id not in self.exchange_info:
-                raise Exception
-            info = self.exchange_info[instrument_id]
-            _instrument_id = info["raw_data"]["instId"]
-            _market = info["raw_data"]["instType"]
-            params.update({"instId": _instrument_id, "instType": _market})
-            results = self.parser.parse_history_orders(
-                await self._get_history_orders(**params), infos=self.exchange_info
-            )
-
-        else:
-            raise Exception("market_type or instrument_id must be provided")
 
         return results
 
@@ -307,4 +196,160 @@ class Okx(OkxUnified):
             raise Exception(f"{instrument_id} not found in exchange_info")
         info = self.exchange_info[instrument_id]
         _instrument_id = info["raw_data"]["instId"]
-        return self.parser.parse_current_funding_rate(await self._get_current_funding_rate(_instrument_id), info)
+        return {
+            instrument_id: self.parser.parse_current_funding_rate(
+                await self._get_current_funding_rate(_instrument_id), info
+            )
+        }
+
+    async def get_last_price(self, instrument_id: str) -> dict:
+        if instrument_id not in self.exchange_info:
+            raise Exception(f"{instrument_id} not found in exchange_info")
+        info = self.exchange_info[instrument_id]
+        _instrument_id = info["raw_data"]["instId"]
+        return self.parser.parse_last_price(await self._get_ticker(_instrument_id), instrument_id=instrument_id)
+
+    async def get_index_price(self, instrument_id: str) -> dict:
+        if instrument_id not in self.exchange_info:
+            raise Exception(f"{instrument_id} not found in exchange_info")
+        info = self.exchange_info[instrument_id]
+        _instrument_id = info["raw_data"]["instId"]
+        return self.parser.parse_index_price(await self._get_index_ticker(_instrument_id), instrument_id=instrument_id)
+
+    async def get_mark_price(self, instrument_id: str) -> dict:
+        if instrument_id not in self.exchange_info:
+            raise Exception(f"{instrument_id} not found in exchange_info")
+        info = self.exchange_info[instrument_id]
+        _instrument_id = info["raw_data"]["instId"]
+        _market_type = info["raw_data"]["instType"].replace("SPOT", "MARGIN")  # endpoint does not support SPOT
+
+        return self.parser.parse_mark_price(
+            await self._get_mark_price(_instrument_id, _market_type), instrument_id=instrument_id
+        )
+
+    async def get_open_interest(self, instrument_id: str = None, market_type: str = None) -> dict:
+        if instrument_id:
+            if instrument_id not in self.exchange_info:
+                raise Exception(f"{instrument_id} not found in exchange_info")
+            info = self.exchange_info[instrument_id]
+            _instrument_id = info["raw_data"]["instId"]
+            return self.parser.parse_open_interest(
+                await self._get_open_interest(instId=_instrument_id), self.exchange_info
+            )
+
+        elif market_type:
+            _market = self.market_type_map[market_type]
+            return self.parser.parse_open_interest(await self._get_open_interest(instType=_market), self.exchange_info)
+
+        else:
+            raise Exception("instrument_id or market must be provided")
+
+    async def get_orderbook(self, instrument_id: str, depth: int = 20):
+        if instrument_id not in self.exchange_info:
+            raise Exception(f"{instrument_id} not found in exchange_info")
+        info = self.exchange_info[instrument_id]
+        _instrument_id = info["raw_data"]["instId"]
+        return self.parser.parse_orderbook(await self._get_orderbook(_instrument_id, str(depth)), info)
+
+    # Private endpoint
+
+    async def get_balance(self):
+        return self.parser.parse_balance(await self._get_balance())
+
+    async def get_positions(self):
+        return self.parser.parse_positions(await self._get_positions(), self.exchange_info)
+
+    async def get_account_info(self):
+        return self.parser.parse_account_config(await self._get_account_config())
+
+    async def place_market_order(self, instrument_id: str, side: str, volume: float, in_quote: bool = False):
+        if instrument_id not in self.exchange_info:
+            raise Exception(f"{instrument_id} not found in exchange_info")
+
+        info = self.exchange_info[instrument_id]
+        _instrument_id = info["raw_data"]["instId"]
+        _order_type = "market"
+
+        order_id = self.parser.parse_order_id(
+            await self._place_order(
+                instId=_instrument_id,
+                side=side,
+                sz=str(volume),
+                ordType=_order_type,
+                tgtCcy="quote_ccy" if in_quote else "base_ccy",
+            )
+        )
+        return self.parser.parse_order_info(await self._get_order_info(_instrument_id, order_id), info)
+
+    async def place_limit_order(
+        self, instrument_id: str, side: str, price: float, volume: float, in_quote: bool = False
+    ):
+        if instrument_id not in self.exchange_info:
+            raise Exception(f"{instrument_id} not found in exchange_info")
+
+        info = self.exchange_info[instrument_id]
+        _instrument_id = info["raw_data"]["instId"]
+        _order_type = "limit"
+
+        order_id = self.parser.parse_order_id(
+            await self._place_order(
+                instId=_instrument_id,
+                side=side,
+                sz=str(volume),
+                px=str(price),
+                ordType=_order_type,
+                tgtCcy="quote_ccy" if in_quote else "base_ccy",
+            )
+        )
+        return self.parser.parse_order_info(await self._get_order_info(_instrument_id, order_id), info)
+
+    async def cancel_order(self, instrument_id: str, order_id: str):
+        if instrument_id not in self.exchange_info:
+            raise Exception(f"{instrument_id} not found in exchange_info")
+        info = self.exchange_info[instrument_id]
+        _instrument_id = info["raw_data"]["instId"]
+        return self.parser.parse_cancel_order(await self._cancel_order(_instrument_id, order_id))
+
+    async def get_opened_orders(self, market_type: str = None, instrument_id: str = None) -> list:
+        params = {"limit": "100"}
+        if market_type:
+            _market_type = self.market_type_map[market_type]
+            params["instType"] = _market_type
+            results = self.parser.parse_opened_orders(
+                await self._get_opended_orders(**params), infos=self.exchange_info
+            )
+        elif instrument_id:
+            if instrument_id not in self.exchange_info:
+                raise Exception(f"{instrument_id} not found in exchange_info")
+            info = self.exchange_info[instrument_id]
+            _instrument_id = info["raw_data"]["instId"]
+            params["instId"] = _instrument_id
+            results = self.parser.parse_opened_orders(
+                await self._get_opended_orders(**params), infos=self.exchange_info
+            )
+        else:
+            raise Exception("market_type or instrument_id must be provided")
+
+        return results
+
+    async def get_history_orders(self, market_type: str = None, instrument_id: str = None) -> list:
+        results = []
+        params = {"limit": "100"}
+
+        if market_type:
+            pass
+        elif instrument_id:
+            if instrument_id not in self.exchange_info:
+                raise Exception
+            info = self.exchange_info[instrument_id]
+            _instrument_id = info["raw_data"]["instId"]
+            _market = info["raw_data"]["instType"]
+            params.update({"instId": _instrument_id, "instType": _market})
+            results = self.parser.parse_history_orders(
+                await self._get_history_orders(**params), infos=self.exchange_info
+            )
+
+        else:
+            raise Exception("market_type or instrument_id must be provided")
+
+        return results

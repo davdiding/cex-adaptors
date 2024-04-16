@@ -1,7 +1,7 @@
 from .base import BaseClient
 
 
-class GateioClient(BaseClient):
+class GateioUnified(BaseClient):
     BASE_URL = "https://api.gateio.ws/api/v4"
 
     def __init__(self) -> None:
@@ -11,25 +11,24 @@ class GateioClient(BaseClient):
     async def _get_currency_pairs(self):
         return await self._get(self.base_url + "/spot/currency_pairs")
 
-    async def _get_perp_info(self, settle: str):
-        return await self._get(self.base_url + f"/futures/{settle}/contracts")
+    async def _get_perp_info(self, settle: str, contract: str = None):
+        params = {k: v for k, v in {"contract": contract}.items() if v}
+        return await self._get(self.base_url + f"/futures/{settle}/contracts", params=params)
 
     async def _get_futures_info(self, settle: str = "usdt"):
         return await self._get(self.base_url + f"/delivery/{settle}/contracts")
 
     async def _get_spot_tickers(self, currency_pair: str = None, timezone: str = None):
-        params = {}
-        if currency_pair:
-            params["currency_pair"] = currency_pair
-        if timezone:
-            params["timezone"] = timezone
+        params = {k: v for k, v in {"currency_pair": currency_pair, "timezone": timezone}.items() if v}
         return await self._get(self.base_url + "/spot/tickers", params=params)
 
-    async def _get_perp_tickers(self, settle: str):
-        return await self._get(self.base_url + f"/futures/{settle}/tickers")
+    async def _get_perp_tickers(self, settle: str, contract: str = None):
+        params = {k: v for k, v in {"contract": contract}.items() if v}
+        return await self._get(self.base_url + f"/futures/{settle}/tickers", params=params)
 
-    async def _get_futures_tickers(self, settle: str = "usdt"):
-        return await self._get(self.base_url + f"/delivery/{settle}/tickers")
+    async def _get_futures_tickers(self, settle: str = "usdt", contract: str = None):
+        params = {k: v for k, v in {"contract": contract}.items() if v}
+        return await self._get(self.base_url + f"/delivery/{settle}/tickers", params=params)
 
     async def _get_spot_klines(self, symbol: str, interval: str, start: int = None, end: int = None, limit: int = None):
         params = {"currency_pair": symbol, "interval": interval}
@@ -68,3 +67,7 @@ class GateioClient(BaseClient):
             params["limit"] = limit
 
         return await self._get(self.base_url + f"/delivery/{settle}/candlesticks", params=params)
+
+    async def _get_futures_funding_rate_history(self, settle: str, contract: str, limit: int = None):
+        params = {k: v for k, v in {"contract": contract, "limit": limit}.items() if v}
+        return await self._get(self.base_url + f"/futures/{settle}/funding_rate", params=params)

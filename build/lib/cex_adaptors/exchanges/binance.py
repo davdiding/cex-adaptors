@@ -39,12 +39,30 @@ class BinanceSpot(BaseClient):
             params["endTime"] = endTime
         return await self._get(self.base_endpoint + "/api/v3/klines", params=params)
 
+    async def _get_orderbook(self, symbol: str, limit: int = 5000):
+        params = {k: v for k, v in {"symbol": symbol, "limit": limit}.items() if v}
+        return await self._get(self.base_endpoint + "/api/v3/depth", params=params)
+
+    async def _get_margin_price_index(self, symbol: str):
+        params = {"symbol": symbol}
+        return await self._get(
+            self.base_endpoint + "/sapi/v1/margin/priceIndex", params=params, auth_data=self.auth_data
+        )
+
+    async def _get_recent_trades_list(self, symbol: str, limit: int = 500):
+        params = {k: v for k, v in {"symbol": symbol, "limit": limit}.items() if v}
+        return await self._get(self.base_endpoint + "/api/v3/trades", params=params)
+
     # Private endpoint
     async def _get_account_info(self):
         return await self._get(self.base_endpoint + "/api/v3/account", auth_data=self.auth_data)
 
     async def _get_margin_account_info(self):
         return await self._get(self.base_endpoint + "/sapi/v1/margin/account", auth_data=self.auth_data)
+
+    async def _get_order_book(self, symbol: str, limit: int = 5000):
+        params = {"symbol": symbol, "limit": limit}
+        return await self._get(self.base_endpoint + "/api/v3/depth", params=params)
 
 
 class BinanceLinear(BaseClient):
@@ -88,6 +106,34 @@ class BinanceLinear(BaseClient):
         }
         return await self._get(self.linear_base_endpoint + "/fapi/v1/fundingRate", params=params)
 
+    async def _get_index_and_mark_price(self, symbol: str):
+        params = {"symbol": symbol}
+        return await self._get(self.linear_base_endpoint + "/fapi/v1/premiumIndex", params=params)
+
+    async def _get_open_interest(self, symbol: str):
+        params = {"symbol": symbol}
+        return await self._get(self.linear_base_endpoint + "/fapi/v1/openInterest", params=params)
+
+    async def _get_open_interest_statistics(
+        self, symbol: str, period: str, limit: int = 500, startTime: int = None, endTime: int = None
+    ):
+        params = {
+            k: v
+            for k, v in {
+                "symbol": symbol,
+                "period": period,
+                "limit": limit,
+                "startTime": startTime,
+                "endTime": endTime,
+            }.items()
+            if v
+        }
+        return await self._get(self.linear_base_endpoint + "/fapi/v1/openInterestHist", params=params)
+
+    async def _get_order_book(self, symbol: str, limit: int = 1000):
+        params = {"symbol": symbol, "limit": limit}
+        return await self._get(self.linear_base_endpoint + "/fapi/v1/depth", params=params)
+
 
 class BinanceInverse(BaseClient):
     BASE_ENDPOINT = "https://dapi.binance.com"
@@ -129,3 +175,39 @@ class BinanceInverse(BaseClient):
             if v
         }
         return await self._get(self.inverse_base_endpoint + "/dapi/v1/fundingRate", params=params)
+
+    async def _get_index_and_mark_price(self, symbol: str = None, pair: str = None):
+        params = {
+            k: v
+            for k, v in {
+                "symbol": symbol,
+                "pair": pair,
+            }.items()
+            if v
+        }
+        return await self._get(self.inverse_base_endpoint + "/dapi/v1/premiumIndex", params=params)
+
+    async def _get_open_interest(self, symbol: str):
+        params = {"symbol": symbol}
+        return await self._get(self.inverse_base_endpoint + "/dapi/v1/openInterest", params=params)
+
+    async def _get_open_interest_statistics(
+        self, symbol: str, contractType: str, period: str, limit: int = 500, startTime: int = None, endTime: int = None
+    ):
+        params = {
+            k: v
+            for k, v in {
+                "symbol": symbol,
+                "contractType": contractType,
+                "period": period,
+                "limit": limit,
+                "startTime": startTime,
+                "endTime": endTime,
+            }.items()
+            if v
+        }
+        return await self._get(self.inverse_base_endpoint + "/dapi/v1/openInterestHist", params=params)
+
+    async def _get_order_book(self, symbol: str, limit: int = 1000):
+        params = {"symbol": symbol, "limit": limit}
+        return await self._get(self.inverse_base_endpoint + "/dapi/v1/depth", params=params)

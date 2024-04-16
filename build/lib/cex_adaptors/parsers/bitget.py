@@ -40,10 +40,15 @@ class BitgetParser(Parser):
         super().__init__()
 
     def check_response(self, response: dict):
-        if response["code"] != "00000":
-            return {"code": 400, "status": "error", "data": response}
+        if response["code"] == "00000":
+            return {
+                "code": 200,
+                "status": "success",
+                "data": response["data"],
+                "timestamp": self.parse_str(response["requestTime"], int),
+            }
         else:
-            return {"code": 200, "status": "success", "data": response["data"]}
+            raise ValueError(f"Error in parsing Bitget response: {response}")
 
     @property
     def spot_exchange_info_parser(self):
@@ -83,7 +88,7 @@ class BitgetParser(Parser):
             "symbol": (lambda x: self.parse_unified_symbol(x["baseCoin"], x["quoteCoin"])),
             "base": (lambda x: self.parse_base_currency(x["baseCoin"])),
             "quote": (lambda x: str(x["quoteCoin"])),
-            "settle": (lambda x: str(x["quoteCoin"])),
+            "settle": (lambda x: str(x["baseCoin"]) if x["quoteCoin"] in self.FIAT_CURRENCY else x["quoteCoin"]),
             "multiplier": (lambda x: self.parse_multiplier(x["baseCoin"])),
             "leverage": (lambda x: int(x["maxLever"])),
             "listing_time": (lambda x: int(x["launchTime"]) if x["launchTime"] else None),
@@ -97,8 +102,6 @@ class BitgetParser(Parser):
 
     def parse_exchange_info(self, response: dict, parser: callable):
         response = self.check_response(response)
-        if response["code"] != 200:
-            return response
 
         datas = response["data"]
         results = {}
@@ -116,56 +119,53 @@ class BitgetParser(Parser):
 
         return {v["raw_data"]["symbol"]: k for k, v in infos.items()}
 
-    def parse_spot_ticker(self, response: dict, info: dict):
+    def parse_ticker(self, response: dict, info: dict, market_type: str):
         return {
-            "symbol": response["symbol"],
+            "timestamp": self.parse_str(response["ts"], int),
+            "instrument_id": self.parse_unified_id(info),
             "open_time": None,  # API not support
-            "close_time": int(response["ts"]),
-            "open": float(response["open"]),
-            "high": float(response["high24h"]),
-            "low": float(response["low24h"]),
-            "last_price": float(response["lastPr"]),
-            "base_volume": float(response["baseVolume"]),
-            "quote_volume": float(response["quoteVolume"]),
-            "price_change": float(response["change24h"]),
-            "price_change_percent": None,  # API not support
+            "close_time": self.parse_str(response["ts"], int),
+            "open": self.parse_str(response["open" if market_type == "spot" else "open24h"], float),
+            "high": self.parse_str(response["high24h"], float),
+            "low": self.parse_str(response["low24h"], float),
+            "last": self.parse_str(response["lastPr"], float),
+            "base_volume": self.parse_str(response["baseVolume"], float),
+            "quote_volume": self.parse_str(response["quoteVolume"], float),
+            "price_change": None,  # API not support
+            "price_change_percent": self.parse_str(response["change24h"], float),
             "raw_data": response,
         }
 
-    def parse_derivative_ticker(self, response: dict, info: dict):
-        return {
-            "symbol": response["symbol"],
-            "open_time": None,  # API not support
-            "close_time": int(response["ts"]),
-            "open": float(response["open24h"]),
-            "high": float(response["high24h"]),
-            "low": float(response["low24h"]),
-            "last_price": float(response["lastPr"]),
-            "base_volume": float(response["baseVolume"]),
-            "quote_volume": float(response["quoteVolume"]),
-            "price_change": float(response["change24h"]),
-            "price_change_percent": None,  # API not support
-            "raw_data": response,
-        }
+    def parse_raw_ticker(self, response: dict, info: dict, market_type: str):
+        response = self.check_response(response)
+        data = response["data"][0]
+        return self.parse_ticker(data, info, market_type)
 
     def parse_tickers(self, response: dict, exchange_info: dict, market_type: str) -> dict:
         response = self.check_response(response)
-        if response["code"] != 200:
-            return response
 
         datas = response["data"]
-
-        method_map = {"spot": self.parse_spot_ticker, "derivative": self.parse_derivative_ticker}
 
         id_map = self.get_bitget_id_map(exchange_info, market_type)
         results = {}
         for data in datas:
             if data["symbol"] not in id_map:
-                print(f"Unmapped symbol: {data['symbol']} in {market_type}")
+                print(f"Unmapped symbol: {data['symbol']} in {market_type} in Bitget")
                 continue
             instrument_id = id_map[data["symbol"]]
-            results[instrument_id] = method_map[market_type](data, exchange_info[instrument_id])
+            results[instrument_id] = self.parse_ticker(data, exchange_info[instrument_id], market_type)
         return results
+
+    def parse_mark_index_price(self, response: dict, info: dict, query_type: str) -> dict:
+        response = self.check_response(response)
+        data = response["data"][0]
+
+        return {
+            "timestamp": self.parse_str(data["ts"], int),
+            "instrument_id": self.parse_unified_id(info),
+            "index_price": self.parse_str(data["indexPrice" if query_type == "index" else "markPrice"], float),
+            "raw_data": data,
+        }
 
     @staticmethod
     def get_market_type(response: dict) -> str:
@@ -188,26 +188,88 @@ class BitgetParser(Parser):
             raise ValueError(f"Invalid interval {interval}")
         return self.INTERVAL_MAP[market_type][interval]
 
-    def parse_klines(self, response: dict, market_type: str) -> dict:
+    def parse_candlesticks(self, response: dict, info: dict, market_type: str, interval: str) -> any:
         response = self.check_response(response)
-        if response["code"] != 200:
-            return response
-
         datas = response["data"]
-        results = {}
+        update_ = {
+            "instrument_id": self.parse_unified_id(info),
+            "market_type": self.parse_unified_market_type(info),
+            "interval": interval,
+        }
+        results = []
         for data in datas:
-            timestamp = int(data[0])
-            results[timestamp] = self.parse_kline(data, market_type)
-        return results
+            result = self.parse_candlestick(data, info, market_type)
+            result.update(update_)
+            results.append(result)
+        return results if len(results) > 1 else results[0]
 
-    def parse_kline(self, response: list, market_type: str) -> dict:
+    def parse_candlestick(self, data: list, info: dict, market_type: str):
         return {
-            "open": float(response[1]),
-            "high": float(response[2]),
-            "low": float(response[3]),
-            "close": float(response[4]),
-            "base_volume": float(response[5]),
-            "quote_volume": float(response[6]),
-            "close_time": None,
-            "raw_data": response,
+            "timestamp": self.parse_str(data[0], int),
+            "open": self.parse_str(data[1], float),
+            "high": self.parse_str(data[2], float),
+            "low": self.parse_str(data[3], float),
+            "close": self.parse_str(data[4], float),
+            "base_volume": self.parse_str(data[5], float),
+            "quote_volume": self.parse_str(data[6], float),
+            "contract_volume": self.parse_str(data[5], float) / (1 if market_type == "spot" else info["contract_size"]),
+            "raw_data": data,
+        }
+
+    def parse_current_funding_rate(self, response: dict, info: dict) -> dict:
+        response = self.check_response(response)
+        data = response["data"][0]
+
+        return {
+            "timestamp": response["timestamp"],
+            "next_funding_time": None,
+            "instrument_id": self.parse_unified_id(info),
+            "market_type": self.parse_unified_market_type(info),
+            "funding_rate": self.parse_str(data["fundingRate"], float),
+            "raw_data": data,
+        }
+
+    def parse_history_funding_rate(self, response: dict, info: dict) -> dict:
+        response = self.check_response(response)
+        datas = response["data"]
+
+        instrument_id = self.parse_unified_id(info)
+        market_type = self.parse_unified_market_type(info)
+
+        return [
+            {
+                "timestamp": self.parse_str(data["fundingTime"], int),
+                "instrument_id": instrument_id,
+                "market_type": market_type,
+                "funding_rate": self.parse_str(data["fundingRate"], float),
+                "realized_rate": self.parse_str(data["fundingRate"], float),
+                "raw_data": data,
+            }
+            for data in datas
+        ]
+
+    def parse_orderbook(self, response: dict, info: dict) -> dict:
+        response = self.check_response(response)
+        datas = response["data"]
+
+        return {
+            "timestamp": self.parse_str(datas["ts"], int),
+            "instrument_id": self.parse_unified_id(info),
+            "asks": [
+                {
+                    "price": self.parse_str(ask[0], float),
+                    "volume": self.parse_str(ask[1], float),
+                    "order_number": None,
+                }
+                for ask in datas["asks"]
+            ],
+            "bids": [
+                {
+                    "price": self.parse_str(bid[0], float),
+                    "volume": self.parse_str(bid[1], float),
+                    "order_number": None,
+                }
+                for bid in datas["bids"]
+            ],
+            "raw_data": datas,
         }

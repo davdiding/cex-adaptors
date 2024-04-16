@@ -1,13 +1,13 @@
-from .exchanges.htx import HtxFutures, HtxUnified
+from .exchanges.htx import HtxFutures, HtxSpot
 from .parsers.htx import HtxParser
-from .utils import query_dict, sort_dict
+from .utils import query_dict
 
 
 class Htx(object):
     name = "htx"
 
     def __init__(self):
-        self.spot = HtxUnified()
+        self.spot = HtxSpot()
         self.futures = HtxFutures()
         self.parser = HtxParser()
         self.exchange_info = {}
@@ -16,11 +16,8 @@ class Htx(object):
         await self.spot.close()
         await self.futures.close()
 
-    @classmethod
-    async def create(cls):
-        instance = cls()
-        instance.exchange_info = await instance.get_exchange_info()
-        return instance
+    async def sync_exchange_info(self):
+        self.exchange_info = await self.get_exchange_info()
 
     async def get_exchange_info(self, market_type: str = None):
         spot = self.parser.parse_exchange_info(
@@ -72,9 +69,55 @@ class Htx(object):
             )
             return {**spot, **linear, **inverse_perp, **inverse_futures}
 
-    async def get_klines(self, instrument_id: str, interval: str, start: int = None, end: int = None, num: int = None):
+    async def get_ticker(self, instrument_id: str) -> dict:
+        # HTX do not support get_ticker endpoint, can only get one ticker from get_tickers
+        tickers = await self.get_tickers()
+        if instrument_id not in tickers:
+            raise ValueError(f"{instrument_id} not found in {self.name} exchange info")
+
+        return {instrument_id: tickers[instrument_id]}
+
+    async def get_current_candlestick(self, instrument_id: str, interval: str) -> dict:
         if instrument_id not in self.exchange_info:
-            raise ValueError(f"{instrument_id} not in exchange_info")
+            raise ValueError(f"{instrument_id} not in {self.name} exchange info")
+
+        info = self.exchange_info[instrument_id]
+        market_type = self.parser.get_market_type(info)
+        _interval = self.parser.get_interval(interval, market_type)
+
+        symbol_map = {
+            "spot": "sc",
+            "linear": "contract_code",
+            "inverse_futures": "symbol",
+            "inverse_perp": "contract_code",
+        }
+
+        method_map = {
+            "spot": self.spot._get_klines,
+            "linear": self.futures._get_linear_contract_klines,
+            "inverse_futures": self.futures._get_inverse_futures_klines,
+            "inverse_perp": self.futures._get_inverse_perp_klines,
+        }
+
+        params = {
+            "symbol": info["raw_data"][symbol_map[market_type]]
+            if market_type != "inverse_futures"
+            else self.parser.parse_inverse_futures_symbol(info["raw_data"]),
+            "period": _interval,
+            "limit": 1,
+        }
+
+        return {
+            instrument_id: self.parser.parse_candlesticks(
+                await method_map[market_type](**params), info, market_type, interval
+            )
+        }
+
+    async def get_history_candlesticks(
+        self, instrument_id: str, interval: str, start: int = None, end: int = None, num: int = None
+    ) -> list:
+        if instrument_id not in self.exchange_info:
+            raise ValueError(f"{instrument_id} not in {self.name} exchange info")
 
         info = self.exchange_info[instrument_id]
         market_type = self.parser.get_market_type(info)
@@ -108,38 +151,121 @@ class Htx(object):
             "period": _interval,
             "limit": limit_map[market_type],
         }
-        results = {}
+        results = []
         query_end = None
         if start and end and market_type != "spot":
             query_end = end
             while True:
                 params["end"] = str(query_end)[:10]
-                result = self.parser.parse_klines(await method_map[market_type](**params), market_type, info)
-                results.update(result)
+                result = self.parser.parse_candlesticks(
+                    await method_map[market_type](**params), info, market_type, interval
+                )
+                results.extend(result)
 
-                temp_end = str(sorted(list(result.keys()))[0])[:10]
+                # exclude datas with same timestamp
+                results = list({v["timestamp"]: v for v in results}.values())
+
+                temp_end = str(min([v["timestamp"] for v in result]))[:10]
                 if len(result) < limit_map[market_type] or temp_end == query_end:
                     break
 
                 query_end = temp_end  # get the earliest timestamp in 10 digits
                 if query_end <= start:
                     break
-            return {k: v for k, v in results.items() if start <= int(k) <= end}
+            return sorted(
+                [v for v in results if start <= v["timestamp"] <= end], key=lambda x: x["timestamp"], reverse=False
+            )
 
         elif num:
             while True:
                 params.update({"end": query_end} if query_end else {})
-                result = self.parser.parse_klines(await method_map[market_type](**params), market_type, info)
-                results.update(result)
+                result = self.parser.parse_candlesticks(
+                    await method_map[market_type](**params), info, market_type, interval
+                )
+                results.extend(result)
 
-                temp_end = str(sorted(list(result.keys()))[0])[:10]
+                temp_end = str(min([v["timestamp"] for v in result]))[:10]
                 if len(result) < limit_map[market_type] or temp_end == query_end:
                     break
 
                 query_end = temp_end  # get the earliest timestamp in 10 digits
                 if len(results) >= num:
                     break
-            return sort_dict(results, ascending=True, num=num)
+            return sorted(results, key=lambda x: x["timestamp"], reverse=False)[-num:]
 
+        else:
+            raise ValueError("(start, end) or num must be provided")
+
+    async def get_current_funding_rate(self, instrument_id: str) -> dict:
+        if instrument_id not in self.exchange_info:
+            raise ValueError(f"{instrument_id} not in {self.name} exchange info")
+
+        info = self.exchange_info[instrument_id]
+        market_type = self.parser.get_market_type(info)
+
+        method_map = {
+            "linear": self.futures._get_linear_funding_fee,
+            "inverse_perp": self.futures._get_inverse_perp_funding_fee,
+        }
+
+        params = {"contract_code": info["raw_data"]["contract_code"]}
+        return {instrument_id: self.parser.parse_current_funding_rate(await method_map[market_type](**params), info)}
+
+    async def get_history_funding_rate(
+        self, instrument_id: str, start: int = None, end: int = None, num: int = None
+    ) -> list:
+        if instrument_id not in self.exchange_info:
+            raise ValueError(f"{instrument_id} not in {self.name} exchange info")
+
+        info = self.exchange_info[instrument_id]
+        market_type = self.parser.get_market_type(info)
+
+        method_map = {
+            "linear": self.futures._get_linear_history_funding_rate,
+            "inverse_perp": self.futures._get_inverse_perp_history_funding_rate,
+        }
+
+        limit = 50
+        index = 1
+        params = {"contract_code": info["raw_data"]["contract_code"], "page_size": limit}
+
+        results = []
+        if start and end:
+            while True:
+                params.update({"page_index": index})
+                result = self.parser.parse_history_funding_rate(await method_map[market_type](**params), info)
+                results.extend(result)
+
+                # exclude data with same timestamp
+                results = list({v["timestamp"]: v for v in results}.values())
+
+                if len(result) < limit:
+                    break
+
+                query_start = min([v["timestamp"] for v in result])
+                if query_start <= start:
+                    break
+                index += 1
+                continue
+
+            return sorted(
+                [v for v in results if start <= v["timestamp"] <= end], key=lambda x: x["timestamp"], reverse=False
+            )
+
+        elif num:
+            while True:
+                params.update({"page_index": index})
+                result = self.parser.parse_history_funding_rate(await method_map[market_type](**params), info)
+                results.extend(result)
+
+                # exclude data with same timestamp
+                results = list({v["timestamp"]: v for v in results}.values())
+
+                if len(result) < limit or len(results) > num:
+                    break
+
+                index += 1
+                continue
+            return sorted(results, key=lambda x: x["timestamp"], reverse=False)[-num:]
         else:
             raise ValueError("(start, end) or num must be provided")

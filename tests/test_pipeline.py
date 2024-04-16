@@ -45,10 +45,10 @@ class TestOkx(IsolatedAsyncioTestCase):
         return
 
     async def test_get_klines(self):
-        spot = await self.okx.get_klines("BTC/USDT:USDT", "1d", num=120)
+        spot = await self.okx.get_history_candlesticks("BTC/USDT:USDT", "1d", num=120)
         self.assertEqual(len(spot), 120)
 
-        perp = await self.okx.get_klines("BTC/USDT:USDT-PERP", "1d", num=77)
+        perp = await self.okx.get_history_candlesticks("BTC/USDT:USDT-PERP", "1d", num=77)
         self.assertEqual(len(perp), 77)
 
         return
@@ -57,10 +57,10 @@ class TestOkx(IsolatedAsyncioTestCase):
         start = int(dt.timestamp(dt(2024, 1, 1)) * 1000)
         end = int(dt.timestamp(dt(2024, 1, 31)) * 1000)
 
-        spot = await self.okx.get_klines("BTC/USDT:USDT", "1d", start=start, end=end)
+        spot = await self.okx.get_history_candlesticks("BTC/USDT:USDT", "1d", start=start, end=end)
         self.assertEqual(len(spot), 30)
 
-        perp = await self.okx.get_klines("BTC/USDT:USDT-PERP", "1d", start=start, end=end)
+        perp = await self.okx.get_history_candlesticks("BTC/USDT:USDT-PERP", "1d", start=start, end=end)
         self.assertEqual(len(perp), 30)
 
         return

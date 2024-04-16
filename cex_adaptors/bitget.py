@@ -1,6 +1,6 @@
 from .exchanges.bitget import BitgetUnified
 from .parsers.bitget import BitgetParser
-from .utils import query_dict, sort_dict
+from .utils import query_dict
 
 
 class Bitget(BitgetUnified):
@@ -167,14 +167,45 @@ class Bitget(BitgetUnified):
 
         return orderbook
 
-    async def get_klines(
-        self, instrument_id: str, interval: str, start: int = None, end: int = None, num: int = None
-    ) -> dict:
+    async def get_current_candlestick(self, instrument_id: str, interval: str) -> dict:
         if instrument_id not in self.exchange_info:
-            return {}
+            raise ValueError(f"{instrument_id} not found in {self.name} exchange info")
 
-        market_type = self.parser.get_market_type(self.exchange_info[instrument_id])
-        _symbol = self.exchange_info[instrument_id]["raw_data"]["symbol"]
+        info = self.exchange_info[instrument_id]
+        _symbol = info["raw_data"]["symbol"]
+        market_type = self.parser.get_market_type(info)
+        _interval = self.parser.get_interval(interval, market_type)
+        limit = 1
+
+        method_map = {
+            "spot": self._get_spot_candlesticks,
+            "derivative": self._get_derivative_candlesticks,
+        }
+
+        params = {
+            "symbol": _symbol,
+            "granularity": _interval,
+            "limit": limit,
+        }
+
+        if market_type == "derivative":
+            params.update({"productType": self.parser.get_product_type(info)})
+
+        return {
+            instrument_id: self.parser.parse_candlesticks(
+                await method_map[market_type](**params), info, market_type, interval
+            )
+        }
+
+    async def get_history_candlesticks(
+        self, instrument_id: str, interval: str, start: int = None, end: int = None, num: int = None
+    ) -> list:
+        if instrument_id not in self.exchange_info:
+            raise ValueError(f"{instrument_id} not found in {self.name} exchange info")
+
+        info = self.exchange_info[instrument_id]
+        market_type = self.parser.get_market_type(info)
+        _symbol = info["raw_data"]["symbol"]
         _interval = self.parser.get_interval(interval, market_type)
         limit = 300
 
@@ -191,40 +222,51 @@ class Bitget(BitgetUnified):
         if market_type == "derivative":
             params.update({"productType": self.parser.get_product_type(self.exchange_info[instrument_id])})
 
-        results = {}
+        results = []
         query_end = None
         if start and end:
             query_end = end
             while True:
                 params.update({"endTime": query_end})
+                result = self.parser.parse_candlesticks(
+                    await method_map[market_type](**params), info, market_type, interval
+                )
+                results.extend(result)
 
-                result = self.parser.parse_klines(await method_map[market_type](**params), market_type)
-                results.update(result)
+                # exclude data with same timestamp
+                results = list({v["timestamp"]: v for v in results}.values())
 
                 if not result or len(result) < limit:
                     break
 
-                query_end = sorted(list(result.keys()))[0]
+                query_end = min([v["timestamp"] for v in result]) + 1
 
                 if query_end < start:
                     break
 
-            return {k: v for k, v in results.items() if start <= k <= end}
+            return sorted(
+                [i for i in results if start <= i["timestamp"] <= end], key=lambda x: x["timestamp"], reverse=False
+            )
         elif num:
             while True:
                 params.update({"endTime": query_end})
 
-                result = self.parser.parse_klines(await method_map[market_type](**params), market_type)
-                results.update(result)
+                result = self.parser.parse_candlesticks(
+                    await method_map[market_type](**params), info, market_type, interval
+                )
+                results.extend(result)
+
+                # exclude data with same timestamp
+                results = list({v["timestamp"]: v for v in results}.values())
 
                 if not result or len(result) < limit:
                     break
 
-                query_end = sorted(list(result.keys()))[0]
+                query_end = min([v["timestamp"] for v in result]) + 1
 
                 if len(results) >= num:
                     break
-            return sort_dict(results, ascending=True, num=num)
+            return sorted(results, key=lambda x: x["timestamp"], reverse=False)[-num:]
 
         else:
             raise ValueError("(start, end) or num must be provided")
@@ -237,9 +279,11 @@ class Bitget(BitgetUnified):
         _symbol = info["raw_data"]["symbol"]
         _product_type = self.parser.get_product_type(info)
 
-        return self.parser.parse_current_funding_rate(
-            await self._get_derivative_current_funding_rate(_symbol, _product_type), info
-        )
+        return {
+            instrument_id: self.parser.parse_current_funding_rate(
+                await self._get_derivative_current_funding_rate(_symbol, _product_type), info
+            )
+        }
 
     async def get_history_funding_rate(
         self, instrument_id: str, start: int = None, end: int = None, num: int = 30

@@ -88,7 +88,7 @@ class BitgetParser(Parser):
             "symbol": (lambda x: self.parse_unified_symbol(x["baseCoin"], x["quoteCoin"])),
             "base": (lambda x: self.parse_base_currency(x["baseCoin"])),
             "quote": (lambda x: str(x["quoteCoin"])),
-            "settle": (lambda x: str(x["quoteCoin"])),
+            "settle": (lambda x: str(x["baseCoin"]) if x["quoteCoin"] in self.FIAT_CURRENCY else x["quoteCoin"]),
             "multiplier": (lambda x: self.parse_multiplier(x["baseCoin"])),
             "leverage": (lambda x: int(x["maxLever"])),
             "listing_time": (lambda x: int(x["launchTime"]) if x["launchTime"] else None),
@@ -188,28 +188,32 @@ class BitgetParser(Parser):
             raise ValueError(f"Invalid interval {interval}")
         return self.INTERVAL_MAP[market_type][interval]
 
-    def parse_klines(self, response: dict, market_type: str) -> dict:
+    def parse_candlesticks(self, response: dict, info: dict, market_type: str, interval: str) -> any:
         response = self.check_response(response)
-        if response["code"] != 200:
-            return response
-
         datas = response["data"]
-        results = {}
+        update_ = {
+            "instrument_id": self.parse_unified_id(info),
+            "market_type": self.parse_unified_market_type(info),
+            "interval": interval,
+        }
+        results = []
         for data in datas:
-            timestamp = int(data[0])
-            results[timestamp] = self.parse_kline(data, market_type)
-        return results
+            result = self.parse_candlestick(data, info, market_type)
+            result.update(update_)
+            results.append(result)
+        return results if len(results) > 1 else results[0]
 
-    def parse_kline(self, response: list, market_type: str) -> dict:
+    def parse_candlestick(self, data: list, info: dict, market_type: str):
         return {
-            "open": float(response[1]),
-            "high": float(response[2]),
-            "low": float(response[3]),
-            "close": float(response[4]),
-            "base_volume": float(response[5]),
-            "quote_volume": float(response[6]),
-            "close_time": None,
-            "raw_data": response,
+            "timestamp": self.parse_str(data[0], int),
+            "open": self.parse_str(data[1], float),
+            "high": self.parse_str(data[2], float),
+            "low": self.parse_str(data[3], float),
+            "close": self.parse_str(data[4], float),
+            "base_volume": self.parse_str(data[5], float),
+            "quote_volume": self.parse_str(data[6], float),
+            "contract_volume": self.parse_str(data[5], float) / (1 if market_type == "spot" else info["contract_size"]),
+            "raw_data": data,
         }
 
     def parse_current_funding_rate(self, response: dict, info: dict) -> dict:
@@ -218,12 +222,10 @@ class BitgetParser(Parser):
 
         return {
             "timestamp": response["timestamp"],
-            "instrument_id": self.parse_unified_id(info),
-            "market": self.parse_unified_market_type(info),
-            "funding_time": None,
-            "funding_rate": self.parse_str(data["fundingRate"], float),
             "next_funding_time": None,
-            "next_funding_rate": None,
+            "instrument_id": self.parse_unified_id(info),
+            "market_type": self.parse_unified_market_type(info),
+            "funding_rate": self.parse_str(data["fundingRate"], float),
             "raw_data": data,
         }
 
@@ -231,11 +233,14 @@ class BitgetParser(Parser):
         response = self.check_response(response)
         datas = response["data"]
 
+        instrument_id = self.parse_unified_id(info)
+        market_type = self.parse_unified_market_type(info)
+
         return [
             {
                 "timestamp": self.parse_str(data["fundingTime"], int),
-                "instrument_id": self.parse_unified_id(info),
-                "market": self.parse_unified_market_type(info),
+                "instrument_id": instrument_id,
+                "market_type": market_type,
                 "funding_rate": self.parse_str(data["fundingRate"], float),
                 "realized_rate": self.parse_str(data["fundingRate"], float),
                 "raw_data": data,

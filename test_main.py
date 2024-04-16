@@ -98,6 +98,24 @@ class TestOkx(IsolatedAsyncioTestCase):
 
         return
 
+    async def test_get_current_candlesticks(self):
+        instrument_id = "BTC/USDT:USDT"
+        kline = await self.exchange.get_current_candlestick(instrument_id, "1d")
+        self.assertTrue(kline)
+        return
+
+    async def test_get_history_candlesticks(self):
+        spot = "BTC/USDT:USDT"
+        perp = "BTC/USDT:USDT-PERP"
+
+        num = 678
+        interval = "1d"
+
+        for i in [spot, perp]:
+            kline = await self.exchange.get_history_candlesticks(i, interval, num=num)
+            self.assertEqual(len(kline), num, f"{i} {len(kline)}")
+        return
+
 
 class TestBinance(IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
@@ -124,11 +142,15 @@ class TestBinance(IsolatedAsyncioTestCase):
         self.assertTrue(exchange_info is not None)
         return
 
-    # Private test
     async def test_get_account_info(self):
         account = await self.binance.get_spot_account_info()
         self.assertTrue(account)
         return
+
+    async def test_get_current_funding_rate(self):
+        instrument_id = "BTC/USDT:USDT-PERP"
+        funding_rate = await self.binance.get_current_funding_rate(instrument_id)
+        self.assertTrue(funding_rate)
 
     async def test_get_funding_rate_with_num(self):
         instrument_id = "BTC/USDT:USDT-PERP"
@@ -140,6 +162,23 @@ class TestBinance(IsolatedAsyncioTestCase):
         num = 1333
         funding_rate = await self.binance.get_history_funding_rate(instrument_id, num=num)
         self.assertEqual(len(funding_rate), num)
+        return
+
+    async def test_get_current_candlestick(self):
+        instrument_id = "BTC/USDT:USDT"
+        kline = await self.binance.get_current_candlestick(instrument_id, "1d")
+        self.assertTrue(kline)
+        return
+
+    async def test_get_history_candlesticks(self):
+        spot = "BTC/USDT:USDT"
+        perp = "BTC/USDT:USDT-PERP"
+        futures = [k for k in self.binance.exchange_info if self.binance.exchange_info[k]["is_futures"]][0]
+
+        num = 100
+        for i in [spot, perp, futures]:
+            kline = await self.binance.get_history_candlesticks(i, "1d", num=num)
+            self.assertEqual(len(kline), num, msg=f"{i} {len(kline)}")
         return
 
     async def test_get_funding_rate_with_timestamp(self):
@@ -243,6 +282,50 @@ class TestHTX(IsolatedAsyncioTestCase):
             self.assertTrue(ticker)
         return
 
+    async def test_get_current_funding_rate(self):
+        linear_perp = "BTC/USDT:USDT-PERP"
+        inverse_perp = "BTC/USD:BTC-PERP"
+
+        for i in [linear_perp, inverse_perp]:
+            funding_rate = await self.htx.get_current_funding_rate(i)
+            self.assertTrue(funding_rate)
+        return
+
+    async def test_get_history_funding_rate_with_num(self):
+        linear_perp = "BTC/USDT:USDT-PERP"
+        inverse_perp = "BTC/USD:BTC-PERP"
+
+        num = 111
+
+        for i in [linear_perp, inverse_perp]:
+            funding_rate = await self.htx.get_history_funding_rate(i, num=num)
+            self.assertEqual(len(funding_rate), num)
+        return
+
+    async def test_get_history_funding_rate_with_timestamp(self):
+        linear_perp = "BTC/USDT:USDT-PERP"
+        inverse_perp = "BTC/USD:BTC-PERP"
+
+        delta = 10
+        start = get_yesterday_timestamp() - delta * 24 * 60 * 60 * 1000
+        end = get_yesterday_timestamp()
+        target_num = 3 * delta + 1
+
+        for i in [linear_perp, inverse_perp]:
+            funding_rate = await self.htx.get_history_funding_rate(i, start=start, end=end)
+            self.assertEqual(len(funding_rate), target_num)
+        return
+
+    async def test_get_current_candlestick(self):
+        spot = "BTC/USDT:USDT"
+        perp = "BTC/USDT:USDT-PERP"
+        future = [k for k in self.htx.exchange_info if self.htx.exchange_info[k]["is_futures"]][0]
+
+        for i in [spot, perp, future]:
+            kline = await self.htx.get_current_candlestick(i, "1d")
+            self.assertTrue(kline)
+        return
+
 
 class TestKucoin(IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
@@ -312,6 +395,40 @@ class TestKucoin(IsolatedAsyncioTestCase):
 
         self.assertEqual(len(orderbook["asks"]), depth)
         self.assertEqual(len(orderbook["bids"]), depth)
+        return
+
+    async def test_get_current_funding_rate(self):
+        instrument_id = "BTC/USDT:USDT-PERP"
+        funding_rate = await self.kucoin_public.get_current_funding_rate(instrument_id)
+        self.assertTrue(funding_rate)
+        return
+
+    async def test_get_history_funding_rate_with_num(self):
+        instrument_id = "BTC/USDT:USDT-PERP"
+        num = 333
+
+        funding_rate = await self.kucoin_public.get_history_funding_rate(instrument_id, num=num)
+        self.assertEqual(len(funding_rate), num)
+        return
+
+    async def test_get_history_funding_rate_with_timestamp(self):
+        instrument_id = "BTC/USDT:USDT-PERP"
+
+        delta = 10
+        start = get_yesterday_timestamp() - delta * 24 * 60 * 60 * 1000
+        end = get_yesterday_timestamp()
+        target_num = 3 * delta + 1
+        funding_rate = await self.kucoin_public.get_history_funding_rate(instrument_id, start=start, end=end)
+        self.assertEqual(len(funding_rate), target_num)
+        return
+
+    async def test_get_current_candlestick(self):
+        spot = "BTC/USDT:USDT"
+        perp = "BTC/USDT:USDT-PERP"
+        future = [k for k in self.kucoin_public.exchange_info if self.kucoin_public.exchange_info[k]["is_futures"]][0]
+        for i in [spot, perp, future]:
+            kline = await self.kucoin_public.get_current_candlestick(i, "1d")
+            self.assertTrue(kline)
         return
 
 
@@ -415,6 +532,16 @@ class TestBitget(IsolatedAsyncioTestCase):
         self.assertEqual(len(funding_rate), target_num)
         return True
 
+    async def test_get_current_candlestick(self):
+        spot = "BTC/USDT:USDT"
+        perp = "BTC/USDT:USDT-PERP"
+        future = [k for k in self.bitget.exchange_info if self.bitget.exchange_info[k]["is_futures"]][0]
+
+        for i in [spot, perp, future]:
+            kline = await self.bitget.get_current_candlestick(i, "1d")
+            self.assertTrue(kline)
+        return
+
 
 class TestGateio(IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
@@ -448,6 +575,36 @@ class TestGateio(IsolatedAsyncioTestCase):
             ticker = await self.gateio.get_ticker(i)
             self.assertTrue(ticker)
 
+        return
+
+    async def test_get_current_funding_rate(self):
+        perp = "BTC/USDT:USDT-PERP"
+        inverse = "BTC/USD:BTC-PERP"
+
+        for i in [perp, inverse]:
+            funding_rate = await self.gateio.get_current_funding_rate(i)
+            self.assertTrue(funding_rate)
+        return
+
+    async def test_get_history_funding_rate_with_num(self):
+        perp = "BTC/USDT:USDT-PERP"
+        inverse = "BTC/USD:BTC-PERP"
+
+        num = 111
+
+        for i in [perp, inverse]:
+            funding_rate = await self.gateio.get_history_funding_rate(i, num=num)
+            self.assertEqual(len(funding_rate), num)
+        return
+
+    async def test_get_current_candlestick(self):
+        spot = "BTC/USDT:USDT"
+        perp = "BTC/USDT:USDT-PERP"
+        future = [k for k in self.gateio.exchange_info if self.gateio.exchange_info[k]["is_futures"]][0]
+
+        for i in [spot, perp, future]:
+            kline = await self.gateio.get_current_candlestick(i, "1d")
+            self.assertTrue(kline)
         return
 
 
@@ -488,6 +645,12 @@ class TestBybit(IsolatedAsyncioTestCase):
         self.assertEqual(len(funding_rate), 7)
         return
 
+    async def test_get_current_funding_rate(self):
+        instrument_id = "BTC/USDT:USDT-PERP"
+        funding_rate = await self.bybit_public.get_current_funding_rate(instrument_id)
+        self.assertTrue(funding_rate)
+        return
+
     async def test_get_open_interest(self):
         instrument_id = "BTC/USDT:USDT-PERP"
         interval = "5m"
@@ -521,6 +684,15 @@ class TestBybit(IsolatedAsyncioTestCase):
         self.assertTrue(mark_price)
         return
 
+    async def test_get_current_candlestick(self):
+        spot = "BTC/USDT:USDT"
+        perp = "BTC/USDT:USDT-PERP"
+        future = [k for k in self.bybit_public.exchange_info if self.bybit_public.exchange_info[k]["is_futures"]][0]
+
+        for i in [spot, perp, future]:
+            data = await self.bybit_public.get_current_candlestick(i, "1d")
+            self.assertTrue(data)
+
     # Private test
 
     async def test_get_account_balance(self):
@@ -544,6 +716,36 @@ class TestOutputStructure(IsolatedAsyncioTestCase):
         "price_change": float,
         "price_change_percent": float,
         "raw_data": dict,
+    }
+    current_funding_rate_structure = {
+        "timestamp": int,
+        "next_funding_time": int,
+        "instrument_id": str,
+        "market_type": str,
+        "funding_rate": float,
+        "raw_data": dict,
+    }
+    history_funding_rate_structure = {
+        "timestamp": int,
+        "instrument_id": str,
+        "market_type": str,
+        "funding_rate": float,
+        "realized_rate": float,
+        "raw_data": dict,
+    }
+    candlesticks_structure = {
+        "timestamp": int,
+        "instrument_id": str,
+        "market_type": str,
+        "interval": str,
+        "open": float,
+        "high": float,
+        "low": float,
+        "close": float,
+        "base_volume": float,
+        "quote_volume": float,
+        "contract_volume": float,
+        "raw_data": list,
     }
 
     async def asyncSetUp(self):
@@ -598,4 +800,253 @@ class TestOutputStructure(IsolatedAsyncioTestCase):
                         self.assertIsInstance(
                             value, self.ticker_structure[key], msg=f"{exchange.name} {instrument_id} {key} {value}"
                         )
+        return
+
+    async def test_current_funding_rate_structure(self):
+        """
+        Test if the output of get_current_funding_rate() has the correct structure.
+        1. return should be a nested dictionary with instrument_id as the first key
+        2. all the keys in the output should be the same
+        3. all the values should be the correct type
+        """
+
+        instrument_id = "BTC/USDT:USDT-PERP"
+        for exchange in self.exchange_list:
+            result = await exchange.get_current_funding_rate(instrument_id)
+            print(exchange.name, instrument_id, result)
+
+            data = result[instrument_id]
+            self.assertIsInstance(data, dict)
+
+            # check if all the keys are the same
+            self.assertEqual(
+                set(data.keys()),
+                set(self.current_funding_rate_structure.keys()),
+                msg=f"{exchange.name} {instrument_id} {data}",
+            )
+
+            # check if all the values are the correct type if the value is not None
+            for key, value in data.items():
+                if value:
+                    self.assertIsInstance(
+                        value,
+                        self.current_funding_rate_structure[key],
+                        msg=f"{exchange.name} {instrument_id} {key} {value}",
+                    )
+        return
+
+    async def test_history_funding_rate_structure(self):
+        """
+        Test if the output of get_history_funding_rate() has the correct structure.
+        In this test will query with (start, end) and num
+        1. return should be a list
+        2. all the sub funding rate should follow the `history_funding_rate_structure`
+        3. all the values should be the correct type
+        4. (start, end) should return days * 3 + 1 funding rate
+        5. num should return num funding rate
+
+        """
+
+        instrument_id = "BTC/USDT:USDT-PERP"
+        num = 77
+
+        delta = 10
+        start = get_yesterday_timestamp() - delta * 24 * 60 * 60 * 1000
+        end = get_yesterday_timestamp()
+        target_num = 3 * delta + 1
+        acceptable_error = -1
+
+        for exchange in self.exchange_list:
+            # (num) test
+            datas = await exchange.get_history_funding_rate(instrument_id, num=num)
+            print(exchange.name, instrument_id, len(datas))
+            self.assertEqual(len(datas), num)
+
+            for data in datas:
+                self.assertEqual(
+                    set(data.keys()),
+                    set(self.history_funding_rate_structure.keys()),
+                    msg=f"{exchange.name} {instrument_id} {data}",
+                )
+
+                for key, value in data.items():
+                    if value:
+                        self.assertIsInstance(
+                            value,
+                            self.history_funding_rate_structure[key],
+                            msg=f"{exchange.name} {instrument_id} {key} {value}",
+                        )
+
+            # (start, end) test
+            datas = await exchange.get_history_funding_rate(instrument_id, start=start, end=end)
+            print(exchange.name, instrument_id, len(datas))
+            self.assertIn(len(datas), [target_num, target_num + acceptable_error])
+
+            for data in datas:
+                self.assertEqual(
+                    set(data.keys()),
+                    set(self.history_funding_rate_structure.keys()),
+                    msg=f"{exchange.name} {instrument_id} {data}",
+                )
+
+                for key, value in data.items():
+                    if value:
+                        self.assertIsInstance(
+                            value,
+                            self.history_funding_rate_structure[key],
+                            msg=f"{exchange.name} {instrument_id} {key} {value}",
+                        )
+        return
+
+    async def test_get_current_candlestick_structure(self):
+        """
+        Test if the output of get_current_candlestick() has the correct structure.
+        1. return should be a dict
+        2. all the keys in the output should be the same
+        3. all the values should be the correct type
+        4. test volume correctness:
+            - difference between quote_volume / base_volume and last price should be less than 5%
+            - contract_volume = base_volume * contract_size or quote_volume / contract_size
+        """
+
+        spot = "BTC/USDT:USDT"
+        perp = "BTC/USDT:USDT-PERP"
+
+        for exchange in self.exchange_list:
+            futures = [k for k, v in exchange.exchange_info.items() if v["is_futures"]][0]
+            for instrument_id in [spot, perp, futures]:
+                current_candlestick = await exchange.get_current_candlestick(instrument_id, "1d")
+                ticker = await exchange.get_ticker(instrument_id)
+                print(exchange.name, instrument_id, current_candlestick)
+
+                data = current_candlestick[instrument_id]
+                ticker_data = ticker[instrument_id]
+                info = exchange.exchange_info[instrument_id]
+                self.assertIsInstance(data, dict)
+
+                # check if all the keys are the same
+                self.assertEqual(
+                    set(data.keys()),
+                    set(self.candlesticks_structure.keys()),
+                    msg=f"{exchange.name} {instrument_id} {data}",
+                )
+
+                # check if all the values are the correct type
+                for key, value in data.items():
+                    if value and key != "raw_data":
+                        self.assertIsInstance(
+                            value,
+                            self.candlesticks_structure[key],
+                            msg=f"{exchange.name} {instrument_id} {key} {value}",
+                        )
+
+                if not data["base_volume"] or not data["quote_volume"]:
+                    continue
+                # check if the volume is correct
+                implied_price = data["quote_volume"] / data["base_volume"]
+                error_window = 0.05
+                last = ticker_data["last"]
+
+                self.assertLess(
+                    abs(implied_price - last) / last,
+                    error_window,
+                    msg=f"{exchange.name} {instrument_id}\n"
+                    f"implied_price: {implied_price}\n"
+                    f"last: {last}\n"
+                    f"data: {data}\n"
+                    f"info: {info}",
+                )
+
+                if not info["contract_size"]:
+                    continue
+                # check if the contract volume is correct
+                contract_size = info["contract_size"]
+                contract_volume = data["contract_volume"]
+                implied_volumes = [data["base_volume"] / contract_size, data["quote_volume"] / contract_size]
+
+                error_list = [abs(contract_volume - v) / v for v in implied_volumes]
+                error_window = 0.05
+                self.assertTrue(
+                    any([error < error_window for error in error_list]),
+                    msg=f"{exchange.name} {instrument_id}\n"
+                    f"contract_size: {contract_size}\n"
+                    f"contract_volume: {contract_volume}\n"
+                    f"implied_volume: {implied_volumes}\n"
+                    f"data: {data}\n"
+                    f"info: {info}",
+                )
+        return
+
+    async def test_get_history_candlesticks(self):
+        """
+        Test if the output of get_history_candlesticks() has the correct structure.
+        1. return should be dict of a list, instrument_id as the first key
+        2. all the keys in the output should be the same
+        3. all the values should be the correct type
+        4. test different query method
+            - inputs (num) -> num of the output should be equal to num
+            - inputs (start, end) -> num of the output should be equal to (end - start) / interval
+        """
+
+        delta_days = 10
+        start = get_yesterday_timestamp() - delta_days * 24 * 60 * 60 * 1000
+        end = get_yesterday_timestamp()
+        target_nums = [delta_days + 1, delta_days]
+
+        num = 107
+
+        interval = "1d"
+
+        for exchange in self.exchange_list:
+
+            spot = "BTC/USDT:USDT"
+            perp = "BTC/USDT:USDT-PERP"
+            # futures = [k for k, v in exchange.exchange_info.items() if v["is_futures"]][0]
+
+            for instrument_id in [spot, perp]:
+                params = {"instrument_id": instrument_id, "interval": interval}
+                # (num) test
+                datas = await exchange.get_history_candlesticks(**params, num=num)
+                print(exchange.name, instrument_id, len(datas))
+
+                self.assertEqual(
+                    len(datas), 90 if exchange.name == "bitget" and num > 90 and instrument_id == perp else num
+                )
+
+                for data in datas:
+                    self.assertEqual(
+                        set(data.keys()),
+                        set(self.candlesticks_structure.keys()),
+                        msg=f"{exchange.name} {instrument_id} {data}",
+                    )
+
+                    for key, value in data.items():
+                        if value and key != "raw_data":
+                            self.assertIsInstance(
+                                value,
+                                self.candlesticks_structure[key],
+                                msg=f"{exchange.name} {instrument_id} {key} {value}",
+                            )
+                if exchange.name == "htx" and instrument_id == spot:
+                    continue
+                # (start, end) test
+                datas = await exchange.get_history_candlesticks(**params, start=start, end=end)
+                print(exchange.name, instrument_id, len(datas))
+
+                self.assertTrue(len(datas) in target_nums, msg=f"{exchange.name} {instrument_id} {len(datas)}")
+
+                for data in datas:
+                    self.assertEqual(
+                        set(data.keys()),
+                        set(self.candlesticks_structure.keys()),
+                        msg=f"{exchange.name} {instrument_id} {data}",
+                    )
+
+                    for key, value in data.items():
+                        if value and key != "raw_data":
+                            self.assertIsInstance(
+                                value,
+                                self.candlesticks_structure[key],
+                                msg=f"{exchange.name} {instrument_id} {key} {value}",
+                            )
         return

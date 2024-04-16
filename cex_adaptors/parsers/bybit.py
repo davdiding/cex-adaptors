@@ -147,16 +147,34 @@ class BybitParser(Parser):
             raise ValueError(f"Invalid interval: {interval}")
         return self.INTERVAL_MAP[interval]
 
-    def parse_klines(self, response: dict) -> dict:
+    def parse_candlesticks(self, response: dict, info: dict, market_type: str, interval: str) -> any:
         response = self.check_response(response)
-
-        results = {}
         datas = response["data"]
-        for data in datas:
-            result = self.parse_kline(data)
-            timestamp = int(data[0])
-            results[timestamp] = result
-        return results
+
+        market = self.parse_unified_market_type(info)
+        instrument_id = self.parse_unified_id(info)
+
+        results = [
+            {
+                "timestamp": self.parse_str(data[0], int),
+                "instrument_id": instrument_id,
+                "market_type": market,
+                "interval": interval,
+                "open": self.parse_str(data[1], float),
+                "high": self.parse_str(data[2], float),
+                "low": self.parse_str(data[3], float),
+                "close": self.parse_str(data[4], float),
+                "base_volume": self.parse_str(data[5], float),
+                "quote_volume": self.parse_str(data[6], float),
+                "contract_volume": (
+                    self.parse_str(data[5], float) / (1 if market_type == "spot" else info["contract_size"])
+                ),
+                "raw_data": data,
+            }
+            for data in datas
+        ]
+
+        return results if len(results) > 1 else results[0]
 
     def get_category(self, info: dict) -> str:
         if info["is_spot"] or info["is_margin"]:
@@ -168,28 +186,22 @@ class BybitParser(Parser):
         else:
             raise ValueError(f"Invalid market type: {info}")
 
-    def parse_kline(self, response: dict) -> dict:
-        return {
-            "open": float(response[1]),
-            "high": float(response[2]),
-            "low": float(response[3]),
-            "close": float(response[4]),
-            "base_volume": float(response[5]),
-            "quote_volume": float(response[6]),
-            "raw_data": response,
-        }
-
     def parse_funding_rate(self, response: dict, info: dict) -> list:
         response = self.check_response(response)
         datas = response["data"]
+
+        instrument_id = self.parse_unified_id(info)
+        market_type = self.parse_unified_market_type(info)
 
         results = []
         for data in datas:
             results.append(
                 {
                     "timestamp": self.parse_str(data["fundingRateTimestamp"], int),
-                    "instrument_id": self.parse_unified_id(info),
+                    "instrument_id": instrument_id,
+                    "market_type": market_type,
                     "funding_rate": self.parse_str(data["fundingRate"], float),
+                    "realized_rate": self.parse_str(data["fundingRate"], float),
                     "raw_data": data,
                 }
             )
@@ -274,4 +286,16 @@ class BybitParser(Parser):
             "instrument_id": instrument_id,
             "mark_price": float(datas["markPrice"]),
             "raw_data": datas,
+        }
+
+    def parse_current_funding_rate(self, response: dict, info: dict) -> dict:
+        response = self.check_response(response)
+        data = response["data"][0]
+        return {
+            "timestamp": response["timestamp"],
+            "next_funding_time": self.parse_str(data["nextFundingTime"], int),
+            "instrument_id": self.parse_unified_id(info),
+            "market_type": self.parse_unified_market_type(info),
+            "funding_rate": self.parse_str(data["fundingRate"], float),
+            "raw_data": data,
         }

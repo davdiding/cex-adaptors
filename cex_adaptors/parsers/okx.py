@@ -176,29 +176,6 @@ class OkxParser(Parser):
             results[instrument_id] = self.parse_ticker(data, market_type, info)
         return results
 
-    @staticmethod
-    def parse_kline(response: dict, market_type: str) -> dict:
-        return {
-            "open": float(response[1]),
-            "high": float(response[2]),
-            "low": float(response[3]),
-            "close": float(response[4]),
-            "base_volume": float(response[6] if market_type != "spot" else response[5]),
-            "quote_volume": float(response[7]),
-            "raw_data": response,
-        }
-
-    def parse_klines(self, response: dict, market_type: str) -> dict:
-        response = self.check_response(response)
-
-        datas = response["data"]
-        results = {}
-        for data in datas:
-            result = self.parse_kline(data, market_type)
-            timestamp = int(data[0])
-            results[timestamp] = result
-        return results
-
     def parse_funding_rates(self, response: dict, info: dict) -> list:
         response = self.check_response(response)
         datas = response["data"]
@@ -207,27 +184,25 @@ class OkxParser(Parser):
         for data in datas:
             results.append(
                 {
-                    "timestamp": int(data["fundingTime"]),
+                    "timestamp": self.parse_str(data["fundingTime"], int),
                     "instrument_id": self.parse_unified_id(info),
-                    "market": self._market_type_map[data["instType"]],
-                    "funding_rate": float(data["fundingRate"]),
-                    "realized_rate": float(data["realizedRate"]),
+                    "market_type": self.parse_unified_market_type(info),
+                    "funding_rate": self.parse_str(data["fundingRate"], float),
+                    "realized_rate": self.parse_str(data["realizedRate"], float),
                     "raw_data": data,
                 }
             )
         return results
 
-    def parse_current_funding_rate(self, resposne: dict, info: dict) -> dict:
-        response = self.check_response(resposne)
+    def parse_current_funding_rate(self, response: dict, info: dict) -> dict:
+        response = self.check_response(response)
         data = response["data"][0]
         return {
-            "timestamp": int(data["ts"]),
+            "timestamp": self.parse_str(data["ts"], int),
+            "next_funding_time": self.parse_str(data["nextFundingTime"], int),
             "instrument_id": self.parse_unified_id(info),
-            "market": self._market_type_map[data["instType"]],
-            "funding_time": int(data["fundingTime"]),
-            "funding_rate": float(data["fundingRate"]),
-            "next_funding_time": int(data["nextFundingTime"]),
-            "next_funding_rate": float(data["nextFundingRate"]) if data["nextFundingRate"] else None,
+            "market_type": self._market_type_map[data["instType"]],
+            "funding_rate": self.parse_str(data["fundingRate"], float),
             "raw_data": data,
         }
 
@@ -269,6 +244,8 @@ class OkxParser(Parser):
         }
 
     def get_interval(self, interval: str) -> str:
+        if interval not in self.interval_map:
+            raise ValueError(f"{interval} is not supported. Must be one of {list(self.interval_map.keys())}")
         return self.interval_map[interval]
 
     def parse_order_id(self, response: dict) -> str:
@@ -432,3 +409,39 @@ class OkxParser(Parser):
             ],
             "raw_data": datas,
         }
+
+    def parse_candlesticks(self, response: dict, info: dict, interval: str) -> any:
+        def parse_volumes(data: list, market_type: str) -> dict:
+            return {
+                "base_volume": self.parse_str(data[5 if market_type == "spot" else 6], float),
+                "quote_volume": self.parse_str(data[7], float),
+                "contract_volume": self.parse_str(data[5], float),
+            }
+
+        response = self.check_response(response)
+        datas = response["data"]
+
+        instrument_id = self.parse_unified_id(info)
+        market_type = self.parse_unified_market_type(info)
+
+        results = []
+        for data in datas:
+            volumes = parse_volumes(data, market_type)
+            results.append(
+                {
+                    "timestamp": self.parse_str(data[0], int),
+                    "instrument_id": instrument_id,
+                    "market_type": market_type,
+                    "interval": interval,
+                    "open": self.parse_str(data[1], float),
+                    "high": self.parse_str(data[2], float),
+                    "low": self.parse_str(data[3], float),
+                    "close": self.parse_str(data[4], float),
+                    "base_volume": volumes["base_volume"],
+                    "quote_volume": volumes["quote_volume"],
+                    "contract_volume": volumes["contract_volume"],
+                    "raw_data": data,
+                }
+            )
+
+        return results if len(results) > 1 else results[0]

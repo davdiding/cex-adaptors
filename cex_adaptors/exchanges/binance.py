@@ -106,7 +106,7 @@ class BinanceLinear(BaseClient):
         }
         return await self._get(self.linear_base_endpoint + "/fapi/v1/fundingRate", params=params)
 
-    async def _get_mark_price(self, symbol: str):
+    async def _get_index_and_mark_price(self, symbol: str):
         params = {"symbol": symbol}
         return await self._get(self.linear_base_endpoint + "/fapi/v1/premiumIndex", params=params)
 
@@ -176,7 +176,7 @@ class BinanceInverse(BaseClient):
         }
         return await self._get(self.inverse_base_endpoint + "/dapi/v1/fundingRate", params=params)
 
-    async def _get_mark_index_price(self, symbol: str = None, pair: str = None):
+    async def _get_index_and_mark_price(self, symbol: str = None, pair: str = None):
         params = {
             k: v
             for k, v in {

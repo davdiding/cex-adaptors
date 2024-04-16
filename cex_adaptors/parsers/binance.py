@@ -116,52 +116,6 @@ class BinanceParser(Parser):
             results[instrument_id] = self.parse_ticker(data, infos[instrument_id])
         return results
 
-    def parse_kline(self, response: list, market_type: str) -> dict:
-        """
-        # spot
-        [
-            [
-                1499040000000,      // Kline open time
-                "0.01634790",       // Open price
-                "0.80000000",       // High price
-                "0.01575800",       // Low price
-                "0.01577100",       // Close price
-                "148976.11427815",  // Volume
-                1499644799999,      // Kline Close time
-                "2434.19055334",    // Quote asset volume
-                308,                // Number of trades
-                "1756.87402397",    // Taker buy base asset volume
-                "28.46694368",      // Taker buy quote asset volume
-                "0"                 // Unused field, ignore.
-            ]
-        ]
-
-        # linear
-        # inverse
-        """
-        return {
-            int(response[0]): {
-                "open": float(response[1]),
-                "high": float(response[2]),
-                "low": float(response[3]),
-                "close": float(response[4]),
-                "base_volume": float(response[7]),
-                "quote_volume": float(response[5]),
-                "close_time": int(response[6]),
-                "raw_data": response,
-            }
-        }
-
-    def parse_klines(self, response: list, market_type: str) -> dict:
-        response = self.check_response(response)
-        datas = response["data"]
-
-        results = {}
-        for data in datas:
-            result = self.parse_kline(data, market_type)
-            results.update(result)
-        return results
-
     def parse_spot_account_info(self, response: dict) -> dict:
         response = self.check_response(response)
         data = response["data"]
@@ -205,9 +159,9 @@ class BinanceParser(Parser):
         results = []
         for data in datas:
             result = {
-                "timestamp": self.parse_str(data["fundingTime"], int),
+                "timestamp": int(round(self.parse_str(data["fundingTime"], int) / 1000)) * 1000,
                 "instrument_id": self.parse_unified_id(info),
-                "market": self.parse_unified_market_type(info),
+                "market_type": self.parse_unified_market_type(info),
                 "funding_rate": self.parse_str(data["fundingRate"], float),
                 "realized_rate": None,
                 "raw_data": data,
@@ -325,3 +279,43 @@ class BinanceParser(Parser):
             return "inverse"
         else:
             raise Exception("market type not found")
+
+    def parse_current_funding_rate(self, response: dict, info: dict) -> dict:
+        response = self.check_response(response)
+        data = response["data"]
+
+        return {
+            "timestamp": self.parse_str(data["time"], int),
+            "next_funding_time": self.parse_str(data["nextFundingTime"], int),
+            "instrument_id": self.parse_unified_id(info),
+            "market_type": self.parse_unified_market_type(info),
+            "funding_rate": self.parse_str(data["lastFundingRate"], float),
+            "raw_data": data,
+        }
+
+    def parse_candlesticks(self, response: dict, info: dict, market_type: str, interval: str) -> any:
+        response = self.check_response(response)
+        datas = response["data"]
+        instrument_id = self.parse_unified_id(info)
+        market_type = self.parse_unified_market_type(info)
+
+        results = []
+
+        for data in datas:
+            results.append(
+                {
+                    "timestamp": self.parse_str(data[0], int),
+                    "instrument_id": instrument_id,
+                    "market_type": market_type,
+                    "interval": interval,
+                    "open": self.parse_str(data[1], float),
+                    "high": self.parse_str(data[2], float),
+                    "low": self.parse_str(data[3], float),
+                    "close": self.parse_str(data[4], float),
+                    "base_volume": self.parse_str(data[5], float),
+                    "quote_volume": self.parse_str(data[7], float),
+                    "contract_volume": self.parse_str(data[5], float),
+                    "raw_data": data,
+                }
+            )
+        return results[0] if len(results) == 1 else results

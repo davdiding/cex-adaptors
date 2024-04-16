@@ -37,7 +37,7 @@ class BybitUnified(BaseClient):
 
         return await self._get(self.base_endpoint + "/v5/market/kline", params=params)
 
-    async def _get_funding_rate(
+    async def _get_funding_rate_history(
         self, category: str, symbol: str, startTime: int = None, endTime: int = None, limit: int = None
     ):
         params = {

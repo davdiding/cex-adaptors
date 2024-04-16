@@ -2,7 +2,6 @@ from typing import Literal, Optional
 
 from .exchanges.bybit import BybitUnified
 from .parsers.bybit import BybitParser
-from .utils import sort_dict
 
 
 class Bybit(BybitUnified):
@@ -62,44 +61,87 @@ class Bybit(BybitUnified):
             )
         }
 
-    async def get_klines(self, instrument_id: str, interval: str, start: int = None, end: int = None, num: int = 30):
-        _category = self.parser.get_category(self.exchange_info[instrument_id])
-        _symbol = self.exchange_info[instrument_id]["raw_data"]["symbol"]
+    async def get_current_candlestick(self, instrument_id: str, interval: str) -> dict:
+        if instrument_id not in self.exchange_info:
+            raise ValueError(f"{instrument_id} is not found in {self.name} exchange info.")
+
+        info = self.exchange_info[instrument_id]
+        _symbol = info["raw_data"]["symbol"]
+        _interval = self.parser.get_interval(interval)
+        _category = self.parser.get_category(info)
+        limit = 1
+
+        params = {"symbol": _symbol, "interval": _interval, "limit": limit, "category": _category}
+
+        return {
+            instrument_id: self.parser.parse_candlesticks(await self._get_klines(**params), info, _category, interval)
+        }
+
+    async def get_history_candlesticks(
+        self, instrument_id: str, interval: str, start: int = None, end: int = None, num: int = 30
+    ) -> list:
+
+        info = self.exchange_info[instrument_id]
+        _category = self.parser.get_category(info)
+        _symbol = info["raw_data"]["symbol"]
         _interval = self.parser.get_interval(interval)
         limit = 1000
 
         params = {"symbol": _symbol, "interval": _interval, "limit": limit, "category": _category}
 
-        results = {}
+        results = []
         query_end = None
         if start and end:
-            query_end = end
+            query_end = end + 1
             while True:
                 params["end"] = query_end
-                klines = self.parser.parse_klines(await self._get_klines(**params))
+                klines = self.parser.parse_candlesticks(await self._get_klines(**params), info, _category, interval)
                 if not klines:
                     break
-                results.update(klines)
-                query_end = sorted(list(klines.keys()))[0]
+                results.extend(klines)
+
+                # exclude data with same timestamp
+                results = list({v["timestamp"]: v for v in results}.values())
+
+                query_end = min([v["timestamp"] for v in klines]) + 1
                 if len(klines) < limit or query_end <= start:
                     break
                 continue
-            return sort_dict({k: v for k, v in results.items() if end >= k >= start}, ascending=True)
+            return sorted(
+                [v for v in results if end >= v["timestamp"] >= start], key=lambda x: x["timestamp"], reverse=False
+            )
 
         elif num:
             while True:
                 params.update({"end": query_end} if query_end else {})
-                klines = self.parser.parse_klines(await self._get_klines(**params))
-                results.update(klines)
+                klines = self.parser.parse_candlesticks(await self._get_klines(**params), info, _category, interval)
+
+                results.extend(klines)
+                # exclude data with same timestamp
+                results = list({v["timestamp"]: v for v in results}.values())
 
                 if len(klines) < limit or len(results) >= num:
                     break
-                query_end = sorted(list(klines.keys()))[0]
+                query_end = min([v["timestamp"] for v in klines]) + 1
                 continue
 
-            return sort_dict(results, ascending=True, num=num)
+            return sorted(results, key=lambda x: x["timestamp"], reverse=False)[-num:]
         else:
             raise ValueError("(start, end) or num must be provided")
+
+    async def get_current_funding_rate(self, instrument_id: str):
+        if instrument_id not in self.exchange_info:
+            raise ValueError(f"{instrument_id} not in {self.name} exchange info")
+
+        info = self.exchange_info[instrument_id]
+        _symbol = info["raw_data"]["symbol"]
+        _category = self.parser.get_category(info)
+
+        params = {
+            "symbol": _symbol,
+            "category": _category,
+        }
+        return {instrument_id: self.parser.parse_current_funding_rate(await self._get_ticker(**params), info)}
 
     async def get_history_funding_rate(self, instrument_id: str, start: int = None, end: int = None, num: int = 30):
         if instrument_id not in self.exchange_info:
@@ -118,7 +160,7 @@ class Bybit(BybitUnified):
             query_end = end + 1
             while True:
                 params["endTime"] = query_end
-                result = self.parser.parse_funding_rate(await self._get_funding_rate(**params), info)
+                result = self.parser.parse_funding_rate(await self._get_funding_rate_history(**params), info)
                 results.extend(result)
 
                 # exclude data with same timestamp
@@ -139,7 +181,7 @@ class Bybit(BybitUnified):
         elif num:
             while True:
                 params.update({"endTime": query_end} if query_end else {})
-                result = self.parser.parse_funding_rate(await self._get_funding_rate(**params), info)
+                result = self.parser.parse_funding_rate(await self._get_funding_rate_history(**params), info)
 
                 results.extend(result)
                 # exclude data with same timestamp

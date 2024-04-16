@@ -1,7 +1,7 @@
 from .base import BaseClient
 
 
-class HtxUnified(BaseClient):
+class HtxSpot(BaseClient):
     BASE_URL = "https://api.huobi.pro"
 
     def __init__(self):
@@ -83,3 +83,29 @@ class HtxFutures(BaseClient):
             params["size"] = limit
 
         return await self._get(self.base_endpoint + "/market/history/kline", params=params)
+
+    async def _get_linear_funding_fee(self, contract_code: str):
+        params = {"contract_code": contract_code}
+        return await self._get(self.base_endpoint + "/linear-swap-api/v1/swap_funding_rate", params=params)
+
+    async def _get_inverse_perp_funding_fee(self, contract_code: str):
+        params = {"contract_code": contract_code}
+        return await self._get(self.base_endpoint + "/swap-api/v1/swap_funding_rate", params=params)
+
+    async def _get_linear_history_funding_rate(self, contract_code: str, page_index: int = None, page_size: int = None):
+        params = {
+            k: v
+            for k, v in {"contract_code": contract_code, "page_index": page_index, "page_size": page_size}.items()
+            if v
+        }
+        return await self._get(self.base_endpoint + "/linear-swap-api/v1/swap_historical_funding_rate", params=params)
+
+    async def _get_inverse_perp_history_funding_rate(
+        self, contract_code: str, page_index: int = None, page_size: int = None
+    ):
+        params = {
+            k: v
+            for k, v in {"contract_code": contract_code, "page_index": page_index, "page_size": page_size}.items()
+            if v
+        }
+        return await self._get(self.base_endpoint + "/swap-api/v1/swap_historical_funding_rate", params=params)

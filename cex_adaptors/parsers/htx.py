@@ -347,64 +347,118 @@ class HtxParser(Parser):
         else:
             raise ValueError("Unknown market type")
 
-    def parse_klines(self, response: dict, market_type: str, info: dict) -> dict:
-        response = self.check_htx_response(response)
-        if response["code"] != 200:
-            return response
-
-        method_map = {
-            "spot": self.parse_spot_and_linear_kline,
-            "linear": self.parse_spot_and_linear_kline,
-            "inverse_perp": self.parse_inverse_perp_kline,
-            "inverse_futures": self.parse_inverse_futures_kline,
-        }
-
-        results = {}
-        datas = response["data"]
-        for data in datas:
-            timestamp = int(int(data["id"]) * 1000)
-            results[timestamp] = method_map[market_type](data, info=info)
-        return results
-
-    def parse_spot_and_linear_kline(self, response: dict, info: dict) -> dict:
-        return {
-            "open": float(response["open"]),
-            "high": float(response["high"]),
-            "low": float(response["low"]),
-            "close": float(response["close"]),
-            "base_volume": float(response["amount"]),
-            "quote_volume": float(response["vol"]),
-            "close_time": None,
-            "raw_data": response,
-        }
-
-    def parse_inverse_perp_kline(self, response: dict, info: dict) -> dict:
-        return {
-            "open": float(response["open"]),
-            "high": float(response["high"]),
-            "low": float(response["low"]),
-            "close": float(response["close"]),
-            "base_volume": float(response["amount"]),
-            "quote_volume": float(response["vol"]) * info["contract_size"],
-            "close_time": None,
-            "raw_data": response,
-        }
-
-    def parse_inverse_futures_kline(self, response: dict, info: dict) -> dict:
-        return {
-            "open": float(response["open"]),
-            "high": float(response["high"]),
-            "low": float(response["low"]),
-            "close": float(response["close"]),
-            "base_volume": float(response["amount"]),
-            "quote_volume": float(response["vol"]) * info["contract_size"],
-            "close_time": None,
-            "raw_data": response,
-        }
-
     def get_interval(self, interval: str, market_type: str) -> str:
         if interval not in self.INTERVAL_MAP[market_type]:
             raise ValueError(
                 f"Invalid interval: {interval} in {market_type}, must be one of {list(self.INTERVAL_MAP[market_type])}"
             )
         return self.INTERVAL_MAP[market_type][interval]
+
+    def parse_current_funding_rate(self, response: dict, info: dict) -> dict:
+        response = self.check_htx_response(response)
+        data = response["data"]
+        return {
+            "timestamp": response["timestamp"],
+            "next_funding_time": self.parse_str(data["funding_time"], int),
+            "instrument_id": self.parse_unified_id(info),
+            "market_type": self.parse_unified_market_type(info),
+            "funding_rate": self.parse_str(data["funding_rate"], float),
+            "raw_data": data,
+        }
+
+    def parse_history_funding_rate(self, response: dict, info: dict) -> list:
+        response = self.check_htx_response(response)
+        datas = response["data"]["data"]
+
+        instrument_id = self.parse_unified_id(info)
+        market_type = self.parse_unified_market_type(info)
+
+        return [
+            {
+                "timestamp": self.parse_str(data["funding_time"], int),
+                "instrument_id": instrument_id,
+                "market_type": market_type,
+                "funding_rate": self.parse_str(data["funding_rate"], float),
+                "realized_rate": self.parse_str(data["realized_rate"], float),
+                "raw_data": data,
+            }
+            for data in datas
+        ]
+
+    def parse_candlesticks(self, response: dict, info: dict, market_type: str, interval: str) -> any:
+        """
+        - spot :
+        [
+            {
+                'id': 1713110400,
+                'open': 64186.51,
+                'close': 66184.98,
+                'low': 62578.94,
+                'high': 66566.0,
+                'amount': 1187.8846778540208,
+                'vol': 77002399.88436274,
+                'count': 86506
+            }
+        ]
+
+        - linear :
+        {
+            "amount":0.004
+            "close":13076.8
+            "count":1
+            "high":13076.8
+            "id":1603695060
+            "low":13076.8
+            "open":13076.8
+            "trade_turnover":52.3072
+            "vol":4
+        }
+
+        - inverse:
+        {
+            "id":1628652420
+            "open":45875.02
+            "close":45851
+            "low":45850.93
+            "high":45880.01
+            "amount":2.6471133153472475
+            "vol":1214
+            "count":50
+        }
+
+        """
+
+        response = self.check_htx_response(response)
+        datas = response["data"]
+
+        update_ = {
+            "instrument_id": self.parse_unified_id(info),
+            "market_type": self.parse_unified_market_type(info),
+            "interval": interval,
+        }
+
+        results = []
+
+        for data in datas:
+            result = self.parse_candlestick(data, info, market_type)
+            result.update(update_)
+            results.append(result)
+
+        return results if len(results) > 1 else results[0]
+
+    def parse_candlestick(self, data: dict, info: dict, market_type: str) -> dict:
+
+        return {
+            "timestamp": self.parse_str(data["id"], int) * 1000,
+            "open": self.parse_str(data["open"], float),
+            "high": self.parse_str(data["high"], float),
+            "low": self.parse_str(data["low"], float),
+            "close": self.parse_str(data["close"], float),
+            "base_volume": self.parse_str(data["amount"], float),
+            "quote_volume": (
+                self.parse_str(data["vol" if market_type != "linear" else "trade_turnover"], float)
+                * (1 if info["is_linear"] else info["contract_size"])
+            ),
+            "contract_volume": self.parse_str(data["amount" if market_type == "spot" else "vol"], float),
+            "raw_data": data,
+        }

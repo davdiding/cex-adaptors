@@ -136,40 +136,6 @@ class KucoinParser(Parser):
             results[instrument_id] = result
         return results
 
-    def parse_klines(self, response: dict, info: dict, market_type: str) -> dict:
-        response = self.check_response(response)
-
-        results = {}
-        datas = response["data"]
-        for data in datas:
-            timestamp = int(int(data[0]) * 1000) if len(str(data[0])) == 10 else int(data[0])
-            results[timestamp] = self.parse_kline(data, info, market_type)
-        return results
-
-    def parse_kline(self, response: dict, info: dict, market_type: str) -> dict:
-        if market_type == "spot":
-            return {
-                "open": float(response[1]),
-                "high": float(response[3]),
-                "low": float(response[4]),
-                "close": float(response[2]),
-                "base_volume": float(response[5]),
-                "quote_volume": float(response[6]),
-                "close_time": None,
-                "raw_data": response,
-            }
-        else:
-            return {
-                "open": float(response[1]),
-                "high": float(response[2]),
-                "low": float(response[3]),
-                "close": float(response[4]),
-                "base_volume": float(response[5]),
-                "quote_volume": None,
-                "close_time": None,
-                "raw_data": response,
-            }
-
     def get_interval(self, interval: str, market: str) -> str:
         if market == "spot":
             if interval not in self.SPOT_INTERVAL_MAP:
@@ -301,5 +267,83 @@ class KucoinParser(Parser):
                 }
                 for ask in data["asks"]
             ],
+            "raw_data": data,
+        }
+
+    def parse_current_funding_rate(self, response: dict, info: dict) -> dict:
+        response = self.check_response(response)
+        data = response["data"]
+        return {
+            "timestamp": self.parse_str(data["timePoint"], int),
+            "next_funding_time": None,
+            "instrument_id": self.parse_unified_id(info),
+            "market_type": self.parse_unified_market_type(info),
+            "funding_rate": self.parse_str(data["value"], float),
+            "raw_data": data,
+        }
+
+    def parse_history_funding_rate(self, response: dict, info: dict) -> list:
+        response = self.check_response(response)
+        datas = response["data"]
+
+        instrument_id = self.parse_unified_id(info)
+        market_type = self.parse_unified_market_type(info)
+
+        results = [
+            {
+                "timestamp": self.parse_str(data["timepoint"], int),
+                "instrument_id": instrument_id,
+                "market_type": market_type,
+                "funding_rate": self.parse_str(data["fundingRate"], float),
+                "realized_rate": self.parse_str(data["fundingRate"], float),
+                "raw_data": data,
+            }
+            for data in datas
+        ]
+
+        return results
+
+    def parse_current_candlestick(self, response: dict, info: dict, market_type: str, interval: str) -> dict:
+        response = self.check_response(response)
+        data = response["data"][0]
+
+        result = self.parse_candlestick(data, info, market_type)
+        result.update(
+            {
+                "instrument_id": self.parse_unified_id(info),
+                "market_type": self.parse_unified_market_type(info),
+                "interval": interval,
+            }
+        )
+        return result
+
+    def parse_history_candlesticks(self, response: dict, info: dict, market_type: str, interval: str) -> list:
+        response = self.check_response(response)
+        datas = response["data"]
+
+        update_ = {
+            "instrument_id": self.parse_unified_id(info),
+            "market_type": self.parse_unified_market_type(info),
+            "interval": interval,
+        }
+        results = []
+        for data in datas:
+
+            result = self.parse_candlestick(data, info, market_type)
+            result.update(update_)
+            results.append(result)
+
+        return results
+
+    def parse_candlestick(self, data: dict, info: dict, market_type) -> dict:
+        return {
+            "timestamp": self.parse_str(data[0], int) * (1000 if len(str(data[0])) == 10 else 1),
+            "open": self.parse_str(data[1], float),
+            "high": self.parse_str(data[3], float),
+            "low": self.parse_str(data[4], float),
+            "close": self.parse_str(data[2], float),
+            "base_volume": self.parse_str(data[5], float) if market_type == "spot" else None,
+            "quote_volume": self.parse_str(data[6 if market_type == "spot" else 5], float),
+            "contract_volume": self.parse_str(data[5], float) if market_type == "spot" else None,
             "raw_data": data,
         }

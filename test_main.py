@@ -747,6 +747,27 @@ class TestOutputStructure(IsolatedAsyncioTestCase):
         "contract_volume": float,
         "raw_data": list,
     }
+    last_price_structure = {
+        "timestamp": int,
+        "instrument_id": str,
+        "market_type": str,
+        "last_price": float,
+        "raw_data": dict,
+    }
+    index_price_structure = {
+        "timestamp": int,
+        "instrument_id": str,
+        "market_type": str,
+        "index_price": float,
+        "raw_data": dict,
+    }
+    mark_price_structure = {
+        "timestamp": int,
+        "instrument_id": str,
+        "market_type": str,
+        "mark_price": float,
+        "raw_data": dict,
+    }
 
     async def asyncSetUp(self):
         self.okx_public = Okx()
@@ -1049,4 +1070,82 @@ class TestOutputStructure(IsolatedAsyncioTestCase):
                                 self.candlesticks_structure[key],
                                 msg=f"{exchange.name} {instrument_id} {key} {value}",
                             )
+        return
+
+    async def test_price_related_structure(self):
+        """
+        Test if the output of get_last_price(), get_index_price(), get_mark_price() has the correct structure.
+        1. return should be dict, instrument_id as the first key
+        2. all the keys in the output should be the same
+        3. all the values should be the correct type
+
+        """
+        spot = "BTC/USDT:USDT"
+        perp = "BTC/USDT:USDT-PERP"
+
+        for exchange in self.exchange_list:
+
+            futures = [k for k, v in exchange.exchange_info.items() if v["is_futures"]][0]
+
+            for instrument_id in [spot, perp, futures]:
+                # last price
+                data = await exchange.get_last_price(instrument_id)
+                print(f"Last price: {exchange.name} {instrument_id} {data}")
+
+                self.assertIsInstance(data, dict)
+                self.assertEqual(
+                    set(data.keys()),
+                    set(self.last_price_structure.keys()),
+                    msg=f"{exchange.name} {instrument_id} {data}",
+                )
+
+                for key, value in data.items():
+                    if value:
+                        self.assertIsInstance(
+                            value,
+                            self.last_price_structure[key],
+                            msg=f"{exchange.name} {instrument_id} {key} {value}",
+                        )
+
+                if instrument_id == spot:
+                    continue
+
+                # index price
+                data = await exchange.get_index_price(instrument_id)
+                print(f"Index price: {exchange.name} {instrument_id} {data}")
+
+                self.assertIsInstance(data, dict)
+                self.assertEqual(
+                    set(data.keys()),
+                    set(self.index_price_structure.keys()),
+                    msg=f"{exchange.name} {instrument_id} {data}",
+                )
+
+                for key, value in data.items():
+                    if value:
+                        self.assertIsInstance(
+                            value,
+                            self.index_price_structure[key],
+                            msg=f"{exchange.name} {instrument_id} {key} {value}",
+                        )
+
+                # mark price
+                data = await exchange.get_mark_price(instrument_id)
+                print(f"Mark price: {exchange.name} {instrument_id} {data}")
+
+                self.assertIsInstance(data, dict)
+                self.assertEqual(
+                    set(data.keys()),
+                    set(self.mark_price_structure.keys()),
+                    msg=f"{exchange.name} {instrument_id} {data}",
+                )
+
+                for key, value in data.items():
+                    if value:
+                        self.assertIsInstance(
+                            value,
+                            self.mark_price_structure[key],
+                            msg=f"{exchange.name} {instrument_id} {key} {value}",
+                        )
+
         return

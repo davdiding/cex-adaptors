@@ -258,33 +258,46 @@ class BybitParser(Parser):
             "raw_data": datas,
         }
 
-    def parse_last_price(self, response: dict, instrument_id: str) -> dict:
+    def parse_last_price(self, response: dict, info: dict) -> dict:
         response = self.check_response(response)
         datas = response["data"][0]
+
+        instrument_id = self.parse_unified_id(info)
+        market_type = self.parse_unified_market_type(info)
         return {
             "timestamp": response["timestamp"],
             "instrument_id": instrument_id,
-            "last_price": float(datas["lastPrice"]),
+            "market_type": market_type,
+            "last_price": self.parse_str(datas["lastPrice"], float),
             "raw_data": datas,
         }
 
-    def parse_index_price(self, response: dict, instrument_id: str) -> dict:
+    def parse_index_price(self, response: dict, info: dict) -> dict:
         response = self.check_response(response)
         datas = response["data"][0]
+
+        instrument_id = self.parse_unified_id(info)
+        market_type = self.parse_unified_market_type(info)
         return {
             "timestamp": response["timestamp"],
             "instrument_id": instrument_id,
-            "index_price": float(datas["indexPrice"]),
+            "market_type": market_type,
+            "index_price": self.parse_str(datas["indexPrice"], float),
             "raw_data": datas,
         }
 
-    def parse_mark_price(self, response: dict, instrument_id: str) -> dict:
+    def parse_mark_price(self, response: dict, info: dict) -> dict:
         response = self.check_response(response)
         datas = response["data"][0]
+
+        instrument_id = self.parse_unified_id(info)
+        market_type = self.parse_unified_market_type(info)
+
         return {
             "timestamp": response["timestamp"],
             "instrument_id": instrument_id,
-            "mark_price": float(datas["markPrice"]),
+            "market_type": market_type,
+            "mark_price": self.parse_str(datas["markPrice"], float),
             "raw_data": datas,
         }
 

@@ -243,7 +243,7 @@ class Binance(object):
         if instrument_id not in self.exchange_info:
             raise ValueError(f"{instrument_id} not found in exchange info")
 
-        return self.parser.parse_last_price(await self.get_ticker(instrument_id), instrument_id)
+        return self.parser.parse_last_price(await self.get_ticker(instrument_id), self.exchange_info[instrument_id])
 
     async def get_index_price(self, instrument_id: str) -> dict:
         if instrument_id not in self.exchange_info:

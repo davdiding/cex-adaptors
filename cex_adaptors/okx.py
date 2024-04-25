@@ -207,14 +207,15 @@ class Okx(OkxUnified):
             raise Exception(f"{instrument_id} not found in exchange_info")
         info = self.exchange_info[instrument_id]
         _instrument_id = info["raw_data"]["instId"]
-        return self.parser.parse_last_price(await self._get_ticker(_instrument_id), instrument_id=instrument_id)
+        return self.parser.parse_last_price(await self._get_ticker(_instrument_id), info)
 
     async def get_index_price(self, instrument_id: str) -> dict:
         if instrument_id not in self.exchange_info:
             raise Exception(f"{instrument_id} not found in exchange_info")
         info = self.exchange_info[instrument_id]
-        _instrument_id = info["raw_data"]["instId"]
-        return self.parser.parse_index_price(await self._get_index_ticker(_instrument_id), instrument_id=instrument_id)
+        _instrument_id = "-".join(info["raw_data"]["instId"].split("-")[:2])
+
+        return self.parser.parse_index_price(await self._get_index_ticker(_instrument_id, info["quote"]), info)
 
     async def get_mark_price(self, instrument_id: str) -> dict:
         if instrument_id not in self.exchange_info:
@@ -223,9 +224,7 @@ class Okx(OkxUnified):
         _instrument_id = info["raw_data"]["instId"]
         _market_type = info["raw_data"]["instType"].replace("SPOT", "MARGIN")  # endpoint does not support SPOT
 
-        return self.parser.parse_mark_price(
-            await self._get_mark_price(_instrument_id, _market_type), instrument_id=instrument_id
-        )
+        return self.parser.parse_mark_price(await self._get_mark_price(_instrument_id, _market_type), info)
 
     async def get_open_interest(self, instrument_id: str = None, market_type: str = None) -> dict:
         if instrument_id:

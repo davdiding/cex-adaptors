@@ -269,3 +269,47 @@ class Htx(object):
             return sorted(results, key=lambda x: x["timestamp"], reverse=False)[-num:]
         else:
             raise ValueError("(start, end) or num must be provided")
+
+    async def get_last_price(self, instrument_id: str) -> dict:
+        ticker = await self.get_ticker(instrument_id)
+        ticker = ticker[instrument_id]
+        info = self.exchange_info[instrument_id]
+
+        return {
+            "timestamp": ticker["timestamp"],
+            "instrument_id": instrument_id,
+            "market_type": self.parser.parse_unified_market_type(info),
+            "last_price": ticker["last"],
+            "raw_data": ticker,
+        }
+
+    async def get_index_price(self, instrument_id: str) -> dict:
+        if instrument_id not in self.exchange_info:
+            raise ValueError(f"{instrument_id} not in {self.name} exchange info")
+
+        info = self.exchange_info[instrument_id]
+        market_type = self.parser.get_market_type(info)
+        symbol = info["raw_data"]["contract_code" if market_type != "inverse_futures" else "symbol"]
+
+        method_map = {
+            "linear": self.futures._get_linear_index,
+            "inverse_perp": self.futures._get_inverse_swap_index,
+            "inverse_futures": self.futures._get_inverse_futures_index,
+        }
+        return self.parser.parse_index_price(await method_map[market_type](symbol), info, market_type)
+
+    async def get_mark_price(self, instrument_id: str) -> dict:
+        if instrument_id not in self.exchange_info:
+            raise ValueError(f"{instrument_id} not in {self.name} exchange info")
+
+        info = self.exchange_info[instrument_id]
+        market_type = self.parser.get_market_type(info)
+        symbol = info["raw_data"]["contract_code" if market_type != "inverse_perp" else "symbol"]
+
+        method_map = {
+            "linear": self.futures._get_linear_kline_data_of_mark_price,
+            "inverse_perp": self.futures._get_inverse_futures_kline_data_of_mark_price,
+            "inverse_futures": self.futures._get_inverse_futures_kline_data_of_mark_price,
+        }
+
+        return self.parser.parse_mark_price(await method_map[market_type](symbol, "1day", 1), info, market_type)

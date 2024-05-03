@@ -61,12 +61,12 @@ class OkxParser(Parser):
             "settle": (lambda x: str(x["quoteCcy"])),
             "multiplier": 1,  # spot and margin default multiplier is 1
             "leverage": (lambda x: self._parse_leverage(x["lever"])),
-            "listing_time": (lambda x: int(x["listTime"])),
+            "listing_time": (lambda x: self.parse_str(x["listTime"], int)),
             "expiration_time": None,  # spot not support this field
             "contract_size": 1,
-            "tick_size": (lambda x: float(x["tickSz"])),
-            "min_order_size": (lambda x: float(x["minSz"])),
-            "max_order_size": (lambda x: float(x["maxMktSz"])),
+            "tick_size": (lambda x: self.parse_str(x["tickSz"], float)),
+            "min_order_size": (lambda x: self.parse_str(x["minSz"], float)),
+            "max_order_size": (lambda x: self.parse_str(x["maxMktSz"], float)),
             "raw_data": (lambda x: x),
         }
 
@@ -86,14 +86,14 @@ class OkxParser(Parser):
             "settle": (lambda x: str(x["settleCcy"])),
             "multiplier": (lambda x: self.parse_multiplier(x["ctMult"])),
             "leverage": (lambda x: self._parse_leverage(x["lever"])),
-            "listing_time": (lambda x: int(x["listTime"])),
+            "listing_time": (lambda x: self.parse_str(x["listTime"], int)),
             "expiration_time": (lambda x: int(x["expTime"]) if x["expTime"] else None),
             "contract_size": (
-                lambda x: float(x["ctVal"])
+                lambda x: self.parse_str(x["ctVal"], float)
             ),  # linear will be how many base ccy and inverse will be how many quote ccy
-            "tick_size": (lambda x: float(x["tickSz"])),
-            "min_order_size": (lambda x: float(x["minSz"])),
-            "max_order_size": (lambda x: float(x["maxMktSz"])),
+            "tick_size": (lambda x: self.parse_str(x["tickSz"], float)),
+            "min_order_size": (lambda x: self.parse_str(x["minSz"], float)),
+            "max_order_size": (lambda x: self.parse_str(x["maxMktSz"], float)),
             "raw_data": (lambda x: x),
         }
 
@@ -289,15 +289,20 @@ class OkxParser(Parser):
         for data in datas:
             results.append(
                 {
-                    "timestamp": int(data["cTime"]),
+                    "timestamp": self.parse_str(data["cTime"], int),
                     "instrument_id": id_map[data["instId"]],
                     "market_type": self._market_type_map[data["instType"]],
                     "side": data["side"],
-                    "price": self.parse_str(data["px"], float),
-                    "volume": self.parse_str(data["sz"], float),
-                    "order_id": str(data["ordId"]),
+                    "executed_price": None,
+                    "executed_volume": None,
+                    "target_price": self.parse_str(data["px"], float),
+                    "target_volume": self.parse_str(data["sz"], float) * (1 if data["side"] == "buy" else -1),
+                    "fee_currency": None,
+                    "fee": None,
                     "order_type": data["ordType"],
-                    "status": data["state"],
+                    "order_id": self.parse_str(data["ordId"], str),
+                    "status": "opened" if data["state"] == "live" else "filled",
+                    "updated_time": self.parse_str(data["uTime"], int),
                     "raw_data": data,
                 }
             )
@@ -313,19 +318,20 @@ class OkxParser(Parser):
         for data in datas:
             results.append(
                 {
-                    "timestamp": int(data["fillTime"]),
-                    "instrument_id": id_map[data["instId"]],
+                    "timestamp": self.parse_str(data["cTime"], int),
+                    "instrument_id": id_map[data["instId"]] if data["instId"] in id_map else f"raw-{data['instId']}",
                     "market_type": self._market_type_map[data["instType"]],
                     "side": data["side"],
                     "executed_price": self.parse_str(data["fillPx"], float),
-                    "executed_volume": self.parse_str(data["fillSz"], float),
+                    "executed_volume": self.parse_str(data["accFillSz"], float) * (1 if data["side"] == "buy" else -1),
                     "target_price": self.parse_str(data["px"], float),
-                    "target_volume": self.parse_str(data["sz"], float),
+                    "target_volume": self.parse_str(data["sz"], float) * (1 if data["side"] == "buy" else -1),
                     "fee_currency": data["feeCcy"],
                     "fee": self.parse_str(data["fee"], float),
                     "order_type": data["ordType"],
-                    "order_id": str(data["ordId"]),
+                    "order_id": self.parse_str(data["ordId"], str),
                     "status": data["state"],
+                    "updated_time": self.parse_str(data["uTime"], int),
                     "raw_data": data,
                 }
             )
@@ -448,3 +454,27 @@ class OkxParser(Parser):
             )
 
         return results if len(results) > 1 else results[0]
+
+    def parse_fees(self, response: dict, infos: dict, fee_type: str) -> list:
+        response = self.check_response(response)
+        datas = response["data"]
+
+        id_map = self.get_id_map(infos)
+
+        fee_index_map = {"8": "pnl"}
+
+        results = []
+        for data in datas:
+            results.append(
+                {
+                    "timestamp": self.parse_str(data["ts"], int),
+                    "instrument_id": id_map[data["instId"]],
+                    "market_type": self._market_type_map[data["instType"]],
+                    "fee_type": fee_type,
+                    "fee_currency": data["ccy"],
+                    "fee": self.parse_str(data[fee_index_map[data["type"]]], float),
+                    "fee_id": data["billId"],
+                    "raw_data": data,
+                }
+            )
+        return results

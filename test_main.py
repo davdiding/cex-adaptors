@@ -23,69 +23,34 @@ def get_yesterday_timestamp():
 
 class TestOkx(IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
-        self.exchange = Okx(
+        self.private_test = Okx(
             api_key=os.getenv("OKX_API_KEY_DEMO"),
             api_secret=os.getenv("OKX_API_SECRET_DEMO"),
             passphrase=os.getenv("OKX_API_PASSPHRASE_DEMO"),
             flag="1",
         )
-        await self.exchange.sync_exchange_info()
+        await self.private_test.sync_exchange_info()
 
     async def asyncTearDown(self):
-        await self.exchange.close()
+        await self.private_test.close()
 
     async def test_exchange_info(self):
-        spot = await self.exchange.get_exchange_info("spot")
+        spot = await self.private_test.get_exchange_info("spot")
         self.assertTrue(spot is not None)
 
-        futures = await self.exchange.get_exchange_info("futures")
+        futures = await self.private_test.get_exchange_info("futures")
         self.assertTrue(futures is not None)
 
-        perp = await self.exchange.get_exchange_info("perp")
+        perp = await self.private_test.get_exchange_info("perp")
         self.assertTrue(perp is not None)
 
-        exchange_info = await self.exchange.get_exchange_info()
+        exchange_info = await self.private_test.get_exchange_info()
         self.assertTrue(exchange_info is not None)
-        return
-
-    # Private endpoints
-    async def test_get_account_info(self):
-        account = await self.exchange.get_account_info()
-        self.assertTrue(account)
-        return
-
-    async def test_get_balance(self):
-        balance = await self.exchange.get_balance()
-        self.assertTrue(balance)
-        return
-
-    async def test_get_positions(self):
-        position = await self.exchange.get_positions()
-        self.assertTrue(position)
-        return
-
-    async def test_place_market_order(self):
-        instrument_id = "ADA/USDT:USDT"
-        side = "buy"
-        volume = 1000
-        order = await self.exchange.place_market_order(instrument_id, side, volume)
-        self.assertTrue(order)
-        return
-
-    async def test_place_limit_order(self):
-        instrument_id = "ADA/USDT:USDT"
-        side = "buy"
-        price = 0.5
-        volume = 1000
-        order = await self.exchange.place_limit_order(instrument_id, side, price, volume)
-
-        cancel = await self.exchange.cancel_order(instrument_id, order["order_id"])
-        self.assertTrue(cancel)
         return
 
     async def test_get_funding_rate_with_timestamp(self):
         perp = "BTC/USDT:USDT-PERP"
-        futures = [k for k in self.exchange.exchange_info if self.exchange.exchange_info[k]["is_futures"]][0]
+        futures = [k for k in self.private_test.exchange_info if self.private_test.exchange_info[k]["is_futures"]][0]
 
         delta = 10
         start = get_yesterday_timestamp() - delta * 24 * 60 * 60 * 1000
@@ -93,14 +58,14 @@ class TestOkx(IsolatedAsyncioTestCase):
         target_num = 3 * delta + 1
 
         for i in [perp, futures]:
-            funding_rate = await self.exchange.get_history_funding_rate(i, start=start, end=end)
+            funding_rate = await self.private_test.get_history_funding_rate(i, start=start, end=end)
             self.assertEqual(len(funding_rate), target_num, f"{i} {len(funding_rate)}")
 
         return
 
     async def test_get_current_candlesticks(self):
         instrument_id = "BTC/USDT:USDT"
-        kline = await self.exchange.get_current_candlestick(instrument_id, "1d")
+        kline = await self.private_test.get_current_candlestick(instrument_id, "1d")
         self.assertTrue(kline)
         return
 
@@ -112,8 +77,76 @@ class TestOkx(IsolatedAsyncioTestCase):
         interval = "1d"
 
         for i in [spot, perp]:
-            kline = await self.exchange.get_history_candlesticks(i, interval, num=num)
+            kline = await self.private_test.get_history_candlesticks(i, interval, num=num)
             self.assertEqual(len(kline), num, f"{i} {len(kline)}")
+        return
+
+    # Private endpoints
+
+    async def test_get_account_info(self):
+        account = await self.private_test.get_account_info()
+        self.assertTrue(account)
+        return
+
+    async def test_get_balance(self):
+        balance = await self.private_test.get_balance()
+        self.assertTrue(balance)
+        return
+
+    async def test_get_positions(self):
+        position = await self.private_test.get_positions()
+        self.assertTrue(position)
+        return
+
+    async def test_place_market_order(self):
+        instrument_id = "ADA/USDT:USDT"
+        side = "buy"
+        volume = 1000
+        order = await self.private_test.place_market_order(instrument_id, side, volume)
+        self.assertTrue(order)
+        return
+
+    async def test_place_limit_order(self):
+        instrument_id = "ADA/USDT:USDT"
+        side = "buy"
+        price = 0.5
+        volume = 1000
+        order = await self.private_test.place_limit_order(instrument_id, side, price, volume)
+
+        cancel = await self.private_test.cancel_order(instrument_id, order["order_id"])
+        self.assertTrue(cancel)
+        return
+
+    async def test_get_history_orders(self):
+        instrument_id = "ADA/USDT:USDT"
+        orders = await self.private_test.get_history_orders(instrument_id=instrument_id)
+        self.assertTrue(orders)
+        return
+
+    async def test_get_opened_orders(self):
+        market_type = "spot"
+        orders = await self.private_test.get_opened_orders(market_type=market_type)
+        self.assertTrue(orders)
+        return
+
+    async def test_get_instrument_pnl(self):
+        instrument_id = "BTC/USDT:USDT-PERP"
+
+        start = int(dt(2024, 5, 1, 11).timestamp() * 1000)
+        end = int(dt(2024, 5, 4).timestamp() * 1000)
+
+        pnl = await self.private_test.get_instrument_pnl(instrument_id, start, end)
+        self.assertTrue(pnl)
+        return
+
+    async def test_get_funding_fee(self):
+        instrument_id = "BTC/USDT:USDT-PERP"
+        start = int(dt(2024, 5, 2).timestamp() * 1000)
+        end = int(dt(2024, 5, 3).timestamp() * 1000)
+        funding_fee = await self.private_test.get_fees(
+            fee_type="funding", instrument_id=instrument_id, start=start, end=end
+        )
+        self.assertTrue(funding_fee)
         return
 
 

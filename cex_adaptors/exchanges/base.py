@@ -10,22 +10,20 @@ class BaseClient(object):
 
     def __init__(self) -> None:
         self._session = aiohttp.ClientSession()
+        self.auth_data = {}
 
     async def _request(self, method: str, url: str, **kwargs):
-        if "auth_data" in kwargs:
-            # Private endpoint request
-            auth_data = kwargs.pop("auth_data")
-
+        if self.auth_data:
             # Split into different exchange method
             if self.name == "okx":
-                auth = OkxAuth(**auth_data)
+                auth = OkxAuth(**self.auth_data)
                 headers = auth.get_private_header(method, url, kwargs.get("params", {}))
                 kwargs["headers"] = headers
                 if method == "POST":
                     kwargs["data"] = auth.body
                     del kwargs["params"]
             elif self.name == "binance":
-                auth = BinanceAuth(**auth_data)
+                auth = BinanceAuth(**self.auth_data)
                 headers = auth.get_private_header()
                 kwargs["params"] = auth.update_params(kwargs.get("params", {}))
                 kwargs["headers"] = headers

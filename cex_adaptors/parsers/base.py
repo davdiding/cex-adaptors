@@ -22,9 +22,10 @@ class Parser:
     STABLE_CURRENCY = ["USDT", "USDC"]
     FIAT_CURRENCY = ["USD"]
 
-    @staticmethod
-    def parse_str(data: str, method: callable):
-        if data is None:
+    IGNORE_STR = [""]
+
+    def parse_str(self, data: str, method: callable):
+        if data is None or data in self.IGNORE_STR:
             return None
         return method(data)
 

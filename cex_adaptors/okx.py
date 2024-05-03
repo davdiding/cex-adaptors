@@ -2,6 +2,7 @@ import tracemalloc
 
 from .exchanges.okx import OkxUnified
 from .parsers.okx import OkxParser
+from .utils import get_pnl_from_orders
 
 tracemalloc.start()
 
@@ -310,45 +311,195 @@ class Okx(OkxUnified):
         return self.parser.parse_cancel_order(await self._cancel_order(_instrument_id, order_id))
 
     async def get_opened_orders(self, market_type: str = None, instrument_id: str = None) -> list:
-        params = {"limit": "100"}
+        """
+        This function accepts the following parameters combinations:
+        1. nothing
+        2. market type
+        3. instrument_id
+        """
+        limit = 100
+        params = {"limit": str(limit)}
+        results = []
         if market_type:
             _market_type = self.market_type_map[market_type]
             params["instType"] = _market_type
-            results = self.parser.parse_opened_orders(
-                await self._get_opended_orders(**params), infos=self.exchange_info
-            )
+            results = self.parser.parse_opened_orders(await self._get_opened_orders(**params), infos=self.exchange_info)
         elif instrument_id:
             if instrument_id not in self.exchange_info:
                 raise Exception(f"{instrument_id} not found in exchange_info")
             info = self.exchange_info[instrument_id]
             _instrument_id = info["raw_data"]["instId"]
             params["instId"] = _instrument_id
-            results = self.parser.parse_opened_orders(
-                await self._get_opended_orders(**params), infos=self.exchange_info
-            )
+            results = self.parser.parse_opened_orders(await self._get_opened_orders(**params), infos=self.exchange_info)
         else:
-            raise Exception("market_type or instrument_id must be provided")
+            for _mkt_type in ["SPOT", "MARGIN", "FUTURES", "SWAP"]:
+                params["instType"] = _mkt_type
+                result = self.parser.parse_opened_orders(
+                    await self._get_opened_orders(**params), infos=self.exchange_info
+                )
+                results.extend(result)
+
+                # exclude orders with same order id
+                results = list({v["order_id"]: v for v in results}.values())
 
         return results
 
-    async def get_history_orders(self, market_type: str = None, instrument_id: str = None) -> list:
+    async def get_history_orders(
+        self, market_type: str = None, instrument_id: str = None, start: int = None, end: int = None
+    ) -> list:
+        """
+        This function accepts the following parameters combinations:
+        1. market_type
+        2. instrument_id
+        3. market_type, start, end
+        4. instrument_id, start, end
+
+        """
+
+        limit = 100
+        params = {"limit": str(limit)}
+
+        params.update({"instType": self.market_type_map[market_type]} if market_type else {})
+        params.update(
+            {
+                "instId": self.exchange_info[instrument_id]["raw_data"]["instId"],
+                "instType": self.exchange_info[instrument_id]["raw_data"]["instType"],
+            }
+        ) if instrument_id else {}
+
         results = []
-        params = {"limit": "100"}
+        query_end = None
 
-        if market_type:
-            pass
-        elif instrument_id:
-            if instrument_id not in self.exchange_info:
-                raise Exception
-            info = self.exchange_info[instrument_id]
-            _instrument_id = info["raw_data"]["instId"]
-            _market = info["raw_data"]["instType"]
-            params.update({"instId": _instrument_id, "instType": _market})
-            results = self.parser.parse_history_orders(
-                await self._get_history_orders(**params), infos=self.exchange_info
+        if start and end:
+            query_end = end + 1
+            while True:
+                params.update({"end": query_end})
+                result = self.parser.parse_history_orders(
+                    await self._get_history_orders(**params), infos=self.exchange_info
+                )
+                results.extend(result)
+                # exclude orders with same order id
+                results = list({v["order_id"]: v for v in results}.values())
+
+                if len(result) < limit:
+                    break
+                query_end = min([v["timestamp"] for v in result])
+                continue
+            return sorted(
+                [v for v in results if start <= v["timestamp"] <= end], key=lambda x: x["timestamp"], reverse=False
             )
-
         else:
-            raise Exception("market_type or instrument_id must be provided")
+            while True:
+                params.update({"end": query_end} if query_end else {})
+                result = self.parser.parse_history_orders(
+                    await self._get_history_orders(**params), infos=self.exchange_info
+                )
+                results.extend(result)
 
-        return results
+                # exclude orders with same order id
+                results = list({v["order_id"]: v for v in results}.values())
+
+                if len(result) < limit:
+                    break
+
+                query_end = min([v["timestamp"] for v in result])
+                continue
+            return results
+
+    async def get_instrument_pnl(self, instrument_id: str, start: int = None, end: int = None) -> dict:
+        params = {k: v for k, v in {"instrument_id": instrument_id, "start": start, "end": end}.items() if v}
+
+        info = self.exchange_info[instrument_id]
+        market_type = self.parser.parse_unified_market_type(info)
+        orders = await self.get_history_orders(**params)
+        last_price = await self.get_last_price(instrument_id)
+
+        parsed_pnl = get_pnl_from_orders(orders, market_type, info=info)
+
+        funding_fee = (
+            await self.get_fees(fee_type="funding", instrument_id=instrument_id, start=start, end=end)
+            if market_type == "perp"
+            else None
+        )
+        funding_fee_amount = sum([v["fee"] for v in funding_fee]) if funding_fee else 0
+
+        current_position = parsed_pnl["position"].iloc[-1]
+        current_avg_price = parsed_pnl["avg_price"].iloc[-1]
+        unrealized_pnl = (last_price["last_price"] - current_avg_price) * current_position
+
+        return {
+            "timestamp": self.parser.get_timestamp(),
+            "instrument_id": instrument_id,
+            "market_type": market_type,
+            "total_pnl": parsed_pnl["realized_pnl"].sum()
+            + parsed_pnl["fee"].sum()
+            + unrealized_pnl
+            + funding_fee_amount,
+            "trade_pnl": parsed_pnl["realized_pnl"].sum(),
+            "trade_fee_currency": orders[0]["fee_currency"],
+            "trade_fee": parsed_pnl["fee"].sum(),
+            "funding_fee_currency": funding_fee[0]["fee_currency"] if funding_fee else None,
+            "funding_fee": funding_fee_amount,
+            "current_position": current_position,
+            "current_avg_price": current_avg_price,
+            "last_price": last_price["last_price"],
+            "unrealized_pnl": unrealized_pnl,
+            "raw_pnl": parsed_pnl,
+            "raw_orders": orders,
+        }
+
+    async def get_market_pnl(self, market_type: str, start: int = None, end: int = None) -> dict:
+        pass
+
+    async def get_fees(
+        self,
+        fee_type: str = "funding",
+        instrument_id: str = None,
+        market_type: str = None,
+        start: int = None,
+        end: int = None,
+        num: int = None,
+    ) -> list:
+        type_map = {
+            "funding": 8,
+            "trade": 2,
+        }
+
+        if fee_type not in type_map:
+            raise ValueError(f"Invalid fee type: {fee_type}, must be one of {list(type_map.keys())}")
+
+        limit = 100
+        params = {"limit": str(limit), "type": str(type_map[fee_type])}
+
+        if instrument_id:
+            params.update({"instType": self.exchange_info[instrument_id]["raw_data"]["instType"]})
+        if market_type:
+            params.update({"instType": self.market_type_map[market_type]})
+
+        results = []
+        query_end = end if end else None
+        while True:
+            params.update({"end": query_end} if query_end else {})
+
+            result = self.parser.parse_fees(
+                await self._get_bills_details(**params), infos=self.exchange_info, fee_type=fee_type
+            )
+            results.extend(result)
+
+            # use fee_id to exclude same fee
+            results = list({v["fee_id"]: v for v in results}.values())
+
+            if len(result) < limit:
+                break
+
+            query_end = min([v["timestamp"] for v in result])
+
+        if instrument_id:
+            results = [v for v in results if v["instrument_id"] == instrument_id]
+
+        if start and end:
+            return sorted(
+                [v for v in results if start <= v["timestamp"] <= end], key=lambda x: x["timestamp"], reverse=False
+            )
+        if num:
+            return sorted(results, key=lambda x: x["timestamp"], reverse=False)[-num:]

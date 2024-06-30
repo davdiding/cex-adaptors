@@ -169,14 +169,15 @@ class BinanceParser(Parser):
             results.append(result)
         return results
 
-    def parse_last_price(self, response: dict, instrument_id: str) -> dict:
-        response = self.check_response(response)
-        data = response["data"][instrument_id]
+    def parse_last_price(self, data: dict, info: dict) -> dict:
+        instrument_id = self.parse_unified_id(info)
+        data = data[instrument_id]
 
         return {
             "timestamp": data["close_time"],
             "instrument_id": instrument_id,
-            "last_price": self.parse_str(data["last_price"], float),
+            "market_type": self.parse_unified_market_type(info),
+            "last_price": self.parse_str(data["last"], float),
             "raw_data": data,
         }
 
@@ -191,6 +192,7 @@ class BinanceParser(Parser):
             return {
                 "timestamp": self.parse_str(data["calcTime"], int),
                 "instrument_id": self.parse_unified_id(info),
+                "market_type": self.parse_unified_market_type(info),
                 "index_price": self.parse_str(data["price"], float),
                 "raw_data": data,
             }
@@ -198,6 +200,7 @@ class BinanceParser(Parser):
             return {
                 "timestamp": self.parse_str(data["time"], int),
                 "instrument_id": self.parse_unified_id(info),
+                "market_type": self.parse_unified_market_type(info),
                 "index_price": self.parse_str(data["indexPrice"], float),
                 "raw_data": data,
             }
@@ -212,6 +215,7 @@ class BinanceParser(Parser):
         return {
             "timestamp": self.parse_str(data["time"], int),
             "instrument_id": self.parse_unified_id(info),
+            "market_type": self.parse_unified_market_type(info),
             "mark_price": self.parse_str(data["markPrice"], float),
             "raw_data": data,
         }
@@ -319,3 +323,20 @@ class BinanceParser(Parser):
                 }
             )
         return results[0] if len(results) == 1 else results
+
+    def parse_margin_market_order(self, response: dict, info: dict) -> dict:
+        data = response
+
+        return {
+            "timestamp": self.parse_str(data["transactTime"], int),
+            "instrument_id": self.parse_unified_id(info),
+            "side": data["side"].lower(),
+            "price": self.parse_str(data["price"], float),
+            "volume": self.parse_str(data["executedQty"], float),
+            "fee_ccy": None,
+            "fee": None,
+            "order_id": str(data["orderId"]),
+            "order_type": data["type"].lower(),
+            "status": data["status"],
+            "raw_data": data,
+        }

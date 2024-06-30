@@ -29,7 +29,7 @@ class OkxParser(Parser):
         if response.get("code") == "0":
             return {"code": 200, "status": "success", "data": response["data"]}
         else:
-            raise Exception(f"Error {response['code']} {response['msg']}")
+            raise ValueError(f"Error when parsing OKX response: {response}")
 
     def _parse_leverage(self, lever: any):
         return int(lever) if lever else 1
@@ -331,32 +331,35 @@ class OkxParser(Parser):
             )
         return results
 
-    def parse_last_price(self, response: dict, instrument_id: str) -> dict:
+    def parse_last_price(self, response: dict, info: dict) -> dict:
         response = self.check_response(response)
         data = response["data"][0]
         return {
             "timestamp": self.parse_str(data["ts"], int),
-            "instrument_id": instrument_id,
+            "instrument_id": self.parse_unified_id(info),
+            "market_type": self.parse_unified_market_type(info),
             "last_price": self.parse_str(data["last"], float),
             "raw_data": data,
         }
 
-    def parse_index_price(self, response: dict, instrument_id: str) -> dict:
+    def parse_index_price(self, response: dict, info: dict) -> dict:
         response = self.check_response(response)
         data = response["data"][0]
         return {
             "timestamp": self.parse_str(data["ts"], int),
-            "instrument_id": instrument_id,
+            "instrument_id": self.parse_unified_id(info),
+            "market_type": self.parse_unified_market_type(info),
             "index_price": self.parse_str(data["idxPx"], float),
             "raw_data": data,
         }
 
-    def parse_mark_price(self, response: dict, instrument_id: str) -> dict:
+    def parse_mark_price(self, response: dict, info: dict) -> dict:
         response = self.check_response(response)
         data = response["data"][0]
         return {
             "timestamp": self.parse_str(data["ts"], int),
-            "instrument_id": instrument_id,
+            "instrument_id": self.parse_unified_id(info),
+            "market_type": self.parse_unified_market_type(info),
             "mark_price": self.parse_str(data["markPx"], float),
             "raw_data": data,
         }

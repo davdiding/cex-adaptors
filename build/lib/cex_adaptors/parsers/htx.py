@@ -462,3 +462,25 @@ class HtxParser(Parser):
             "contract_volume": self.parse_str(data["amount" if market_type == "spot" else "vol"], float),
             "raw_data": data,
         }
+
+    def parse_index_price(self, response: dict, info: dict, market_type: str) -> dict:
+        response = self.check_htx_response(response)
+        data = response["data"][0]
+        return {
+            "timestamp": self.parse_str(data["index_ts"], int),
+            "instrument_id": self.parse_unified_id(info),
+            "market_type": self.parse_unified_market_type(info),
+            "index_price": self.parse_str(data["index_price"], float),
+            "raw_data": data,
+        }
+
+    def parse_mark_price(self, response: dict, info: dict, market_type: str) -> dict:
+        response = self.check_htx_response(response)
+        data = response["data"][0]
+        return {
+            "timestamp": self.parse_str(data["id"], int) * 1000,
+            "instrument_id": self.parse_unified_id(info),
+            "market_type": self.parse_unified_market_type(info),
+            "mark_price": self.parse_str(data["close"], float),
+            "raw_data": data,
+        }

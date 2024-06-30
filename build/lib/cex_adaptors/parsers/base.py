@@ -24,7 +24,7 @@ class Parser:
 
     @staticmethod
     def parse_str(data: str, method: callable):
-        if not data:
+        if data is None:
             return None
         return method(data)
 
@@ -126,3 +126,7 @@ class Parser:
     @staticmethod
     def query_dict_by_keys(datas: dict, keys: list) -> dict:
         return {key: datas[key] for key in keys if key in datas}
+
+    @staticmethod
+    def get_timestamp() -> int:
+        return int(datetime.now().timestamp() * 1000)

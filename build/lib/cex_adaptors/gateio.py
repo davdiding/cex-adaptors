@@ -222,3 +222,41 @@ class Gateio(GateioUnified):
             return sorted(results, key=lambda x: x["timestamp"], reverse=False)[-num:]
         else:
             raise ValueError("(start, end) or num must be provided")
+
+    async def get_last_price(self, instrument_id: str) -> dict:
+        ticker = await self.get_ticker(instrument_id)
+        ticker = ticker[instrument_id]
+        info = self.exchange_info[instrument_id]
+
+        return {
+            "timestamp": ticker["timestamp"],
+            "instrument_id": instrument_id,
+            "market_type": self.parser.parse_unified_market_type(info),
+            "last_price": ticker["last"],
+            "raw_data": ticker,
+        }
+
+    async def get_index_price(self, instrument_id: str) -> dict:
+        if instrument_id not in self.exchange_info:
+            raise ValueError(f"{instrument_id} not in {self.name} exchange info")
+        info = self.exchange_info[instrument_id]
+        return {
+            "timestamp": self.parser.get_timestamp(),
+            "instrument_id": instrument_id,
+            "market_type": self.parser.parse_unified_market_type(info),
+            "index_price": None,
+            "raw_data": None,
+        }  # gateio do not support index price
+
+    async def get_mark_price(self, instrument_id: str) -> dict:
+        if instrument_id not in self.exchange_info:
+            raise ValueError(f"{instrument_id} not in {self.name} exchange info")
+
+        info = self.exchange_info[instrument_id]
+        return {
+            "timestamp": self.parser.get_timestamp(),
+            "instrument_id": instrument_id,
+            "market_type": self.parser.parse_unified_market_type(info),
+            "mark_price": None,
+            "raw_data": None,
+        }  # gateio do not support mark price

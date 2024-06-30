@@ -57,8 +57,9 @@ class OkxUnified(BaseClient):
         params = {k: v for k, v in {"instId": instId, "after": after, "before": before, "limit": limit}.items() if v}
         return await self._get(self.BASE_ENDPOINT + "/api/v5/public/funding-rate-history", params=params)
 
-    async def _get_index_ticker(self, instId: str):
-        return await self._get(self.BASE_ENDPOINT + "/api/v5/market/index-tickers", params={"instId": instId})
+    async def _get_index_ticker(self, instId: str, quoteCcy: str):
+        params = {k: v for k, v in {"instId": instId, "quoteCcy": quoteCcy}.items() if v}
+        return await self._get(self.BASE_ENDPOINT + "/api/v5/market/index-tickers", params=params)
 
     async def _get_mark_price(self, instId: str, instType: str):
         return await self._get(

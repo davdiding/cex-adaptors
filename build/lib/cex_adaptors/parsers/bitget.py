@@ -163,7 +163,10 @@ class BitgetParser(Parser):
         return {
             "timestamp": self.parse_str(data["ts"], int),
             "instrument_id": self.parse_unified_id(info),
-            "index_price": self.parse_str(data["indexPrice" if query_type == "index" else "markPrice"], float),
+            "market_type": self.parse_unified_market_type(info),
+            "index_price"
+            if query_type == "index"
+            else "mark_price": self.parse_str(data["indexPrice" if query_type == "index" else "markPrice"], float),
             "raw_data": data,
         }
 

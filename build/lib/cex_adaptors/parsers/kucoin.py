@@ -222,24 +222,30 @@ class KucoinParser(Parser):
             "raw_data": response,
         }
 
-    def parse_mark_price(self, response: dict, info: dict, market_type: str) -> dict:
+    def parse_mark_price(self, response: dict, info: dict) -> dict:
         response = self.check_response(response)
         data = response["data"]
 
         return {
             "timestamp": self.parse_str(data["timePoint"], int),
             "instrument_id": self.parse_unified_id(info),
+            "market_type": self.parse_unified_market_type(info),
             "mark_price": self.parse_str(data["value"], float),
             "raw_data": data,
         }
 
-    def parse_index_price(self, response: dict, info: dict, market_type: str) -> dict:
+    def parse_index_price(
+        self,
+        response: dict,
+        info: dict,
+    ) -> dict:
         response = self.check_response(response)
         data = response["data"]
 
         return {
             "timestamp": self.parse_str(data["timePoint"], int),
             "instrument_id": self.parse_unified_id(info),
+            "market_type": self.parse_unified_market_type(info),
             "index_price": self.parse_str(data["indexPrice"], float),
             "raw_data": data,
         }

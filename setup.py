@@ -8,7 +8,7 @@ def load_requirements():
 
 setup(
     name="cex-adaptors",
-    version="1.0.6",
+    version="1.0.7",
     packages=find_packages(),
     install_requires=load_requirements(),
     long_description=open("README.md").read(),

@@ -109,3 +109,31 @@ class HtxFutures(BaseClient):
             if v
         }
         return await self._get(self.base_endpoint + "/swap-api/v1/swap_historical_funding_rate", params=params)
+
+    async def _get_linear_index(self, contract_code: str):
+        params = {"contract_code": contract_code}
+        return await self._get(self.base_endpoint + "/linear-swap-api/v1/swap_index", params=params)
+
+    async def _get_inverse_futures_index(self, symbol: str):
+        params = {"symbol": symbol}
+        return await self._get(self.base_endpoint + "/api/v1/contract_index", params=params)
+
+    async def _get_inverse_swap_index(self, contract_code: str):
+        params = {"contract_code": contract_code}
+        return await self._get(self.base_endpoint + "/swap-api/v1/swap_index", params=params)
+
+    async def _get_linear_market_data(self, contract_code: str):
+        params = {"contract_code": contract_code}
+        return await self._get(self.base_endpoint + "/linear-swap-ex/market/detail/merged", params=params)
+
+    async def _get_linear_kline_data_of_mark_price(self, contract_code: str, period: str, size: int):
+        params = {"contract_code": contract_code, "period": period, "size": size}
+        return await self._get(self.base_endpoint + "/index/market/history/linear_swap_mark_price_kline", params=params)
+
+    async def _get_inverse_futures_kline_data_of_mark_price(self, symbol: str, period: str, size: int):
+        params = {"symbol": symbol, "period": period, "size": size}
+        return await self._get(self.base_endpoint + "/index/market/history/mark_price_kline", params=params)
+
+    async def _get_inverse_swap_kline_data_of_mark_price(self, contract_code: str, period: str, size: int):
+        params = {"contract_code": contract_code, "period": period, "size": size}
+        return await self._get(self.base_endpoint + "/index/market/history/swap_mark_price_kline", params=params)

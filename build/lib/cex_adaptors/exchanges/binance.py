@@ -64,6 +64,30 @@ class BinanceSpot(BaseClient):
         params = {"symbol": symbol, "limit": limit}
         return await self._get(self.base_endpoint + "/api/v3/depth", params=params)
 
+    async def _place_margin_order(
+        self,
+        symbol: str,
+        side: str,
+        type: str,
+        quantity: float = None,
+        price: float = None,
+        quoteOrderQty: float = None,
+    ):
+        params = {
+            k: v
+            for k, v in {
+                "symbol": symbol,
+                "side": side,
+                "type": type,
+                "quantity": quantity,
+                "price": price,
+                "quoteOrderQty": quoteOrderQty,
+            }.items()
+            if v
+        }
+
+        return await self._post(self.base_endpoint + "/sapi/v1/margin/order", params=params, auth_data=self.auth_data)
+
 
 class BinanceLinear(BaseClient):
     BASE_ENDPOINT = "https://fapi.binance.com"

@@ -71,3 +71,23 @@ class GateioUnified(BaseClient):
     async def _get_futures_funding_rate_history(self, settle: str, contract: str, limit: int = None):
         params = {k: v for k, v in {"contract": contract, "limit": limit}.items() if v}
         return await self._get(self.base_url + f"/futures/{settle}/funding_rate", params=params)
+
+    async def _get_perp_premium_index_kline(
+        self, settle: str, contract: str, _from: int = None, to: int = None, limit: int = None, interval: str = None
+    ):
+        params = {
+            k: v
+            for k, v in {"contract": contract, "from": _from, "to": to, "limit": limit, "interval": interval}.items()
+            if v
+        }
+        return await self._get(self.base_url + f"/futures/{settle}/premium_index", params=params)
+
+    async def _get_perp_premium_index_klines(
+        self, settle: str, contract: str, interval: str, _from: int = None, to: int = None, limit: int = None
+    ):
+        params = {
+            k: v
+            for k, v in {"contract": contract, "from": _from, "to": to, "limit": limit, "interval": interval}.items()
+            if v
+        }
+        return await self._get(self.base_url + f"/futures/{settle}/premium_index", params=params)

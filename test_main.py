@@ -120,8 +120,8 @@ class TestOkx(IsolatedAsyncioTestCase):
 class TestBinance(IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
         self.binance = Binance(
-            api_key=os.getenv("BINANCE_API_KEY"),
-            api_secret=os.getenv("BINANCE_API_SECRET"),
+            api_key=os.getenv("BINANCE_API_TRADE_KEY"),
+            api_secret=os.getenv("BINANCE_API_TRADE_SECRET"),
         )
         await self.binance.sync_exchange_info()
 
@@ -247,6 +247,15 @@ class TestBinance(IsolatedAsyncioTestCase):
             # check if orderbook depth is correct
             self.assertEqual(len(orderbook["asks"]), depth)
             self.assertEqual(len(orderbook["bids"]), depth)
+        return
+
+    async def test_margin_account_place_market_order(self):
+        instrument_id = "ADA/USDT:USDT"
+        side = "buy"
+        volume = 922
+
+        order = await self.binance.place_margin_market_order(instrument_id=instrument_id, side=side, volume=volume)
+        self.assertTrue(order)
         return
 
 

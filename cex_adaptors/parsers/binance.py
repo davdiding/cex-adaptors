@@ -323,3 +323,20 @@ class BinanceParser(Parser):
                 }
             )
         return results[0] if len(results) == 1 else results
+
+    def parse_margin_market_order(self, response: dict, info: dict) -> dict:
+        data = response
+
+        return {
+            "timestamp": self.parse_str(data["transactTime"], int),
+            "instrument_id": self.parse_unified_id(info),
+            "side": data["side"].lower(),
+            "price": self.parse_str(data["price"], float),
+            "volume": self.parse_str(data["executedQty"], float),
+            "fee_ccy": None,
+            "fee": None,
+            "order_id": str(data["orderId"]),
+            "order_type": data["type"].lower(),
+            "status": data["status"],
+            "raw_data": data,
+        }

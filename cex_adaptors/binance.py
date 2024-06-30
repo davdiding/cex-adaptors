@@ -36,8 +36,12 @@ class Binance(object):
         inverse = self.parser.parse_exchange_info(
             await self.inverse._get_exchange_info(), self.parser.futures_exchange_info_parser("inverse")
         )
-        result = {**spot, **linear, **inverse}
-        return result if not market_type else self.parser.query_dict(result, {f"is_{market_type}": True})
+        self.exchange_info = {**spot, **linear, **inverse}
+        return (
+            self.exchange_info
+            if not market_type
+            else self.parser.query_dict(self.exchange_info, {f"is_{market_type}": True})
+        )
 
     async def get_ticker(self, instrument_id: str):
         _symbol = self.exchange_info[instrument_id]["raw_data"]["symbol"]
@@ -350,3 +354,25 @@ class Binance(object):
 
         else:
             return net_btc_value * btc_price
+
+    # Margin account trade functions
+
+    async def place_margin_market_order(self, instrument_id: str, side: str, volume: float, in_quote=False) -> dict:
+        margin_info = await self.get_exchange_info("margin")
+        if instrument_id not in margin_info:
+            raise ValueError(f"{instrument_id} not found in margin exchange info")
+
+        info = self.exchange_info[instrument_id]
+        _type = "MARKET"
+
+        symbol = info["raw_data"]["symbol"]
+        _side = side.upper()
+
+        params = {
+            "symbol": symbol,
+            "type": _type,
+            "side": _side,
+            "quantity" if not in_quote else "quoteOrderQty": volume,
+        }
+
+        return self.parser.parse_margin_market_order(await self.spot._place_margin_order(**params), info)
